@@ -49,6 +49,33 @@ jobs:
         with:
           path: pi-desktop
 
+
+      # C2（2026-10-13 落地）：断言「发布版本来自 tag 且与 package.json.version 一致」。
+      # 动机：Release 的 tag_name 用 `inputs.version || github.ref_name`，若不校验：
+      #   - 可以推一个与 package.json 不一致的 tag（发错版）；
+      #   - workflow_dispatch 不填 version 时 tag 会退化成**分支名**（main）。
+      # 两种来源都必须在第一步就被拦住（fail-visible）。
+      - name: Assert tag/version consistency（tag ↔ package.json.version）
+        shell: bash
+        working-directory: pi-desktop
+        run: |
+          pkg=$(node -p "require('./package.json').version")
+          want="v$pkg"
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            got="${GITHUB_REF_NAME}"
+            src="tag"
+          else
+            got="${{ inputs.version }}"
+            src="workflow_dispatch input"
+            if [ -z "$got" ]; then
+              echo "::error::workflow_dispatch 必须显式提供 version（应为 $want）——留空会让 Release 的 tag 退化为分支名 ${GITHUB_REF_NAME}"
+              exit 1
+            fi
+          fi
+          case "$got" in
+            "$want"|"$pkg") echo "版本一致性通过：$src = $got｜package.json = $pkg" ;;
+            *) echo "::error::版本不一致：$src = $got，package.json = $pkg（应为 $want）"; exit 1 ;;
+          esac
       - name: Clone sibling pi（pinned tag + SHA 断言）
         shell: bash
         run: |
