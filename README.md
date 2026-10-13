@@ -1,313 +1,382 @@
-# Pi Desktop
-
-> 把 [Pi](https://pi.dev)（可扩展的 agent harness）与其浏览器界面 [Pi Web](https://github.com/agegr/pi-web)
-> 封装成 **Windows / macOS / Linux 的一等公民桌面应用**：Electron **43.7.9** 承载
-> **`pi-web` 的 Next 服务器（含 agent 与 `/api/*`）**，渲染层同源加载该服务端提供的 Pi Web UI，
-> 桌面壳补齐 pi 自己没有的东西（托盘、原生通知、单实例、窗口状态、产物引导、更新引导），
-> 界面 **100% 复用上游**、不 fork 前端。
-
-**版本**：`0.1.0`（**骨架阶段：Phase 0 未取证**，见 [docs/构建验证记录.md](docs/构建验证记录.md)）
-· **上游基线**：`pi` **v1.1.0**（`Branch_v1.1.0`）+ `pi-web` **v0.11.1**（`Branch_v0.11.1`）
-· **运行时**：Electron **43.7.9**（Node **24.21.0** / Chromium **150.0.7871.250** / ABI **148**）
-· **应用名 / 可执行名 / 应用 ID**：`Pi Desktop` / `pi-desktop` / `com.fellow99.pi.desktop`
-（⬜ 应用 ID 与发布主体需人工确认，规划 §11.3）
-
-**工程规划（source of truth）**：[docs/工程规划.md](docs/工程规划.md) —— 做什么、怎么做、按什么顺序做、有哪些风险。
+[中文](./README_zh.md) | English
 
 ---
 
-## 这是什么
+# Pi Desktop
 
-`Pi` 是一个最小、可扩展的 agent harness：扩展、技能、提示模板、主题都可替换，官方提供
-CLI / RPC / JSON / SDK 四种集成入口。`Pi Web` 是它的本地浏览器界面（Next.js 16 App Router 应用），
-**一个 Node 进程同时提供 SPA 与 `/api/*`**，agent 在该进程内创建（`lib/rpc-manager.ts` 直接 import
-`@earendil-works/pi-coding-agent` 的 SDK，**不需要 `pi` 二进制在 PATH**）。
+> A **first-class desktop app for Windows / macOS / Linux** that wraps
+> [Pi](https://github.com/earendil-works/pi) (an extensible agent harness) and its browser UI
+> [Pi Web](https://github.com/agegr/pi-web): Electron **43.7.9** hosts **`pi-web`'s Next server
+> (agent + `/api/*`)** inside the main process, and the renderer loads the Pi Web UI from that same
+> origin. The desktop shell adds what `pi` itself does not ship (tray, native notifications, single
+> instance, window state, artifact bootstrap, update guidance) while the UI is **100% upstream** —
+> no frontend fork.
 
-本工程把这一套装进 Electron 桌面壳：应用启动后**用户直接看到 Pi 的界面**，不需要手动起服务、
-不需要开浏览器、不需要输入密码。它**不是**「包一层浏览器指向 localhost」的粗壳 ——
-服务端与 agent 跑在 Electron 主进程进程内，桌面壳负责环境装配、产物就位、生命周期与平台能力。
+**Version**: `0.11.1` (tag `v0.11.1`; **Phase 0 fully measured**, see [docs/构建验证记录.md](docs/构建验证记录.md))
+· **Upstream baseline**: `pi` **v1.1.0** (`Branch_v1.1.0`) + `pi-web` **v0.11.1** (`Branch_v0.11.1`)
+· **Runtime**: Electron **43.7.9** (Node **24.21.0** / Chromium **150.0.7871.250** / ABI **148**)
+· **App name / executable / app ID**: `Pi Desktop` / `pi-desktop` / `com.fellow99.pi.desktop`
 
-> **非官方声明**：本工程非 Pi / Pi Web 团队构建，与上游作者无隶属关系，未获其背书。
-> `Pi`（MIT，[earendil-works/pi](https://github.com/earendil-works/pi)）与
-> `Pi Web`（MIT，[agegr/pi-web](https://github.com/agegr/pi-web)）均为上游开源项目，
-> 本工程只做**装配**，不 fork、不改上游源码（本版必需补丁 **0 条**，见规划 §7）。
+**Engineering plan (source of truth)**: [docs/工程规划.md](docs/工程规划.md) — what we build, how, in what order, and the risks.
 
-## 核心设计
+---
+
+## What is this
+
+`Pi` is a minimal, extensible agent harness: extensions, skills, prompt templates and themes are all
+replaceable, and it ships four integration entry points (CLI / RPC / JSON / SDK). `Pi Web` is its local
+browser UI (a Next.js 16 App Router app) where **one Node process serves both the SPA and `/api/*`**,
+and the agent is created inside that process (`lib/rpc-manager.ts` imports the
+`@earendil-works/pi-coding-agent` SDK directly — **no `pi` binary on `PATH` required**).
+
+This project puts that stack inside an Electron desktop shell: after launch the user **sees the Pi
+interface directly** — no manual server start, no browser, no password prompt. It is **not** a thin
+"browser pointing at localhost" shell: the server and the agent run in-process in the Electron main
+process, and the shell owns environment assembly, artifact bootstrap, lifecycle and platform features.
+
+> **Unofficial**: this project is not built by the Pi / Pi Web teams, has no affiliation with the
+> upstream authors and is not endorsed by them. `Pi` (MIT,
+> [earendil-works/pi](https://github.com/earendil-works/pi)) and `Pi Web` (MIT,
+> [agegr/pi-web](https://github.com/agegr/pi-web)) are upstream open-source projects; this project only
+> **assembles** them — no fork, no upstream source changes (**0 required patches**, see plan §7).
+
+## Core design
 
 ```
-┌─ Pi Desktop（Electron 43.7.9）──────────────────────────────────────────────┐
-│  Electron 主进程（Node 24.21.0）                                            │
-│    ├─ 环境装配：PI_CODING_AGENT_DIR / PI_WEB_* / NO_PROXY / 代理绕过         │
-│    ├─ 产物就位：pi-dist.tar.gz → <userData>/pi-dist（SHA-256 marker 幂等）    │
-│    ├─ rotatePreviewSecrets(<pi-dist>/.next)   ← 必须在起服务之前             │
-│    ├─ 进程内 Next 服务器：startServer({dir, hostname:'127.0.0.1', port})     │
-│    │     ├─ SPA（Pi Web UI）+ /api/* + SSE /api/agent/[id]/events            │
-│    │     └─ agent 会话（pi SDK，同进程内）                                    │
-│    ├─ 就绪判定：HTTP 轮询 /api/web-auth（**不解析 stdout**）                  │
-│    ├─ 桌面能力：托盘 / 原生通知 / 窗口状态 / 单实例 / 检查更新                │
-│    └─ 建窗：BrowserWindow → loadURL('http://127.0.0.1:<port>/')             │
-│                              ▲ 同源（无 CORS、无自定义协议、数据面零 IPC）    │
+┌─ Pi Desktop (Electron 43.7.9) ──────────────────────────────────────────────┐
+│  Electron main process (Node 24.21.0)                                       │
+│    ├─ env assembly: PI_CODING_AGENT_DIR / PI_WEB_* / NO_PROXY / proxy bypass│
+│    ├─ artifact bootstrap: pi-dist.tar.gz → <userData>/pi-dist (SHA-256 marker)│
+│    ├─ rotatePreviewSecrets(<pi-dist>/.next)   ← must run before the server  │
+│    ├─ chdir(<pi-dist>)                       ← Next's project-root basis    │
+│    ├─ in-process Next server: startServer({dir, hostname:'127.0.0.1', port})│
+│    │     ├─ SPA (Pi Web UI) + /api/* + SSE /api/agent/[id]/events           │
+│    │     └─ agent sessions (pi SDK, same process)                           │
+│    ├─ readiness: HTTP polling on /api/web-auth (**no stdout parsing**)      │
+│    ├─ desktop features: tray / notifications / window state / single inst.  │
+│    └─ window: BrowserWindow → loadURL('http://127.0.0.1:<port>/')           │
+│                              ▲ same origin (no CORS, no custom protocol,    │
+│                                zero IPC on the data path)                   │
 │    ┌─────────────────────────┴──────────────────────────────────────────┐   │
-│    │ 渲染进程（Chromium 150）：标准 Pi Web UI                             │   │
-│    │   fetch('/api/*') 上行 · EventSource('/api/agent/[id]/events') 下行  │   │
+│    │ renderer (Chromium 150): the stock Pi Web UI                        │   │
+│    │   fetch('/api/*') up · EventSource('/api/agent/[id]/events') down    │   │
 │    └────────────────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-启动时序（**失败可见**：任一阶段失败都会在 loading 页显示具体阶段与原因，并落 `<userData>/logs/`）：
+Startup sequence (**fail-visible**: any failing stage is shown on the loading page with the exact stage
+and reason, and logged to `<userData>/logs/`):
 
 ```
-[lock] 单实例锁 → [env] 环境装配 → [artifact] 产物就位（首启解压）
-  → [secret] 预览密钥轮换 → [server] 进程内起 Next（随机端口 + 随机密码）
-  → [ready] HTTP 轮询就绪（上限 30 s）→ [load] loadURL(http://127.0.0.1:<port>/) → 首屏
+[lock] single-instance lock → [env] environment assembly → [artifact] artifact bootstrap (first run: extract)
+  → [secret] preview-secret rotation → [cwd] chdir to the artifact root → [server] in-process Next (random port + random password)
+  → [ready] HTTP readiness polling (30 s cap) → [auth] inject session credentials → [load] loadURL(http://127.0.0.1:<port>/) → first screen
 ```
 
-### 与「`pi` CLI + 浏览器打开 `pi-web`」的差异
+### Differences from "`pi` CLI + a browser on `pi-web`"
 
-| 维度 | `pi` CLI + 浏览器开 `pi-web` | **Pi Desktop** |
+| Aspect | `pi` CLI + browser on `pi-web` | **Pi Desktop** |
 |---|---|---|
-| 启动 | 手动起服务、手动开浏览器、手动贴地址 | 一条启动链：解压 → 起服务 → 轮询就绪 → 建窗 |
-| 服务端形态 | `bin/pi-web.js` 用 `spawn(process.execPath, [next,'start',…])` 拉**子进程** | **主进程进程内** `startServer({dir,hostname,port})`；无子进程、无孤儿、无进程树清理 |
-| 就绪判定 | 解析子进程 stdout 出现 `Ready` | **HTTP 轮询** `/api/web-auth`（免认证探活） |
-| 端口 | 固定 `30141`（`PORT`/`-p`） | **随机空闲高位端口**（`listen(0)` 探测后释放） |
-| 绑定 | `127.0.0.1`（`PI_WEB_HOSTNAME`/`-H`） | `127.0.0.1`（同，无 loopback 隔离问题） |
-| 鉴权 | 手填密码；不设 `PI_WEB_PASSWORD` 即**完全无认证** | **宿主侧生成随机强密码**（不入日志、不回显），壳层注入 **两件凭据**：`pi_web_session` cookie（页面导航）+ `Authorization: Basic pi:<pw>`（`/api/*` 与 SSE）→ **用户永远看不到登录页** |
-| 产物位置 | `.next` 在源码目录，密钥轮换写回源码树（不可写则保留构建期密钥） | `pi-dist.tar.gz` 随包，**首启解压到 `<userData>/pi-dist`**（保证可写 → 密钥可轮换） |
-| 数据落点 | `~/.pi/agent` | 默认**共享** `~/.pi/agent`（直接用上已有 pi 环境），设置内可切 `<userData>/pi-agent` |
-| 桌面能力 | 无 | 托盘、原生通知（会话 JSONL 尾随）、单实例唤回、窗口状态记忆、F11、外链走系统浏览器、检查更新 |
-| 关闭 | 终端里 Ctrl-C | 优雅关闭链：置 `isQuitting` → 关 SSE → `httpServer.close()` → `5 s` deadline 后强退 |
-| 升级 | 手动 `git pull` + 重建 | 换包即换 `pi-dist.tar.gz`；marker（SHA-256）变化即**重新解压**，不留旧文件 |
+| Startup | start the server, open a browser, paste the URL | one chain: extract → start server → poll readiness → create window |
+| Server shape | `bin/pi-web.js` spawns a **child process** (`spawn(process.execPath, [next,'start',…])`) | **in-process** in the main process (`startServer({dir,hostname,port})`); no child, no orphans, no process-tree cleanup |
+| Readiness | parse the child's stdout for `Ready` | **HTTP polling** of `/api/web-auth` (unauthenticated liveness probe, expects **200**) |
+| Port | fixed `30141` (`PORT`/`-p`) | **random free high port** (probed via `listen(0)`, then released) |
+| Bind | `127.0.0.1` (`PI_WEB_HOSTNAME`/`-H`) | `127.0.0.1` (same; no loopback-isolation issue) |
+| Auth | type the password; with no `PI_WEB_PASSWORD` there is **no auth at all** | **the host generates a random strong password** (never logged, never echoed) and injects **two credentials**: the `pi_web_session` cookie (page navigation) + `Authorization: Basic pi:<pw>` (`/api/*` and SSE) → **the user never sees the login page** |
+| Artifact location | `.next` lives in the source tree; secret rotation writes back into it (read-only → keeps build-time secrets) | `pi-dist.tar.gz` ships with the app and is **extracted into `<userData>/pi-dist` on first run** (guaranteed writable → secrets can be rotated) |
+| Data location | `~/.pi/agent` | **shares** `~/.pi/agent` by default (reuses your existing pi environment); switchable to `<userData>/pi-agent` in settings |
+| Desktop features | none | tray, native notifications (session JSONL tailing), single-instance recall, window-state memory, F11, external links to the system browser, update check |
+| Branding | upstream `Pi Web` copy and icons | **`Pi Desktop` brand + icons from the parent project's assets** (next section) |
+| Shutdown | Ctrl-C in the terminal | graceful chain: set `isQuitting` → close SSE → `httpServer.close()` → hard exit after a `5 s` deadline |
+| Upgrade | manual `git pull` + rebuild | ship a new `pi-dist.tar.gz`; a changed SHA-256 marker triggers a **re-extract** with no stale files |
 
-## 能力清单
+## Branding and icons (requirement 012-branding)
 
-标记口径：**✅ 已核实 / 已实现**｜**⚠️ 条件可用 / 受限**｜**⬜ 未实测**（附将产出该结论的探针编号）｜**❌ 明确不做**。
-完整三平台矩阵、依据列与降级矩阵见 **[docs/桌面能力清单.md](docs/桌面能力清单.md)**。
+Because this is an assembly project, branding is applied **only to our own artifacts** (`pi-dist/` copy
+and `resources/`), leaving all three upstream repos untouched:
 
-| 能力 | 状态 | 说明 |
-|---|---|---|
-| Pi Web UI（主界面，同源加载） | ⬜ **P0-1/P0-3** | 链路已按规划落地，真机/实机首屏未取证 |
-| 进程内 Next 服务器 + agent | ⬜ **P0-1** | 候选 A `start-server.js` 导出；另有 A′（NextServer API）与 B（显式 sidecar）两条回退 |
-| 会话持久化 / 续接（JSONL） | ⬜ **P0-2** | 落 `PI_CODING_AGENT_DIR/sessions/` |
-| 模型与凭据（OAuth / API Key） | ⬜ **P0-3 / O5** | 共享 `~/.pi/agent/auth.json` |
-| 文件类工具（读/写/编辑/列目录/图片） | ⬜ **P0-2** | 依赖上游 SDK，无平台约束 |
-| 终端面板 / PTY | ⬜ **P0-3** | 受 `node-pty` 在 ABI 148 下可加载性制约；不可用则明示降级 |
-| MCP（stdio / HTTP） | ⬜ **P0-3** | 桌面无子进程约束，理论恢复 |
-| `git` / worktree / diff | ⬜ **P0-3** | 依赖用户机有 `git`；缺失时上游自动降级且不报错 |
-| 内容搜索（`rg`/`fd`） | ⚠️ 条件可用 | 需系统已有或允许下载；离线环境不可用（⬜ P0-3） |
-| 扩展 / 技能在线安装 | ⚠️ 条件可用 | 需 `npm`/`git` 与网络；`PI_OFFLINE` 可作离线开关 |
-| 托盘 / 原生通知 / 单实例 / 窗口状态 | ⬜ **P0-0 / P0-5** | 沿用 `dsh-desktop` 范式；通知事件源为**会话 JSONL 尾随**（零上游补丁） |
-| 检查更新（半自动） | ⬜ **数据源待定** | 「检查更新 → 打开下载页」；**不自动下载、不静默安装**（规划 §5.7 / §11.3） |
-| 深链 / 开机自启 / 全局快捷键 / 多窗口 | ❌ | 明确不做（Phase 2 视需求评估，规划 §5.8） |
-| 代码签名 / 公证 / 静默更新 | ❌ | v1 不做；登记为 Phase 3（规划 §0.4 / §9.2 / §11.3） |
-| 交叉打包 | ❌ | 三平台各自构建各自产物（原生件必须与目标平台一致） |
-
-## 目标平台与分发
-
-| 平台 | 产物 | 安装体验（**未签名**） | 状态 |
-|---|---|---|---|
-| Windows（主验证） | Squirrel `Pi Desktop-<版本> Setup.exe` + `.nupkg` + `RELEASES`、`zip` | 直装；SmartScreen 提示「更多信息 → 仍要运行」 | ⬜ **P0-6** |
-| macOS | `.dmg` + `zip` | 需**右键 → 打开**，或 `xattr -dr com.apple.quarantine "/Applications/Pi Desktop.app"` | ⬜ **P0-6** |
-| Linux | `.deb` + `.rpm` + `zip` | 直装（无强制签名门禁） | ⬜ **P0-6** |
-
-安装包体积、首启耗时、内存占用均为 ⬜ 待实测（量级参考与推算见规划 §8.3）。发布流程、产物清单、
-未签名安装指引与更新行为见 **[docs/发布与更新.md](docs/发布与更新.md)**。
-
-## 技术栈
-
-| 层 | 组件 | 版本 | 说明 |
-|---|---|---|---|
-| 运行时 | Electron | **43.7.9**（精确钉住，不用 `^`） | Node **24.21.0** / Chromium **150.0.7871.250** / ABI **148** |
-| 运行时 | Node（Electron 内置） | 24.21.0 | 满足上游 `engines.node >= 22.19.0`，**无需** 鸿蒙版那套 Node 错位论证 |
-| 构建 | Electron Forge | `^7.11.2` | `@electron-forge/plugin-vite` + `@electron/fuses` `^1.8.0` |
-| 构建 | Vite | `^7.3.6`（`vite.{main,preload,renderer}.config.ts`） | 主进程入口 `src/main/index.ts` → `.vite/build/main.js` |
-| 构建 | TypeScript | `^5.6.0`（strict，`tsc --noEmit`） | `@types/node` `^24.3.0` |
-| 构建 | makers | Forge 5 个 maker | Squirrel(win) / ZIP(win,mac,linux) / DMG(mac) / RPM(linux) / DEB(linux) |
-| CI | Node | **24.21.0** | 与运行时同版（门禁用同一个 Node 起服务） |
-| 上游（随 `pi-dist` 分发） | `pi-web` | **0.11.1**（Next **16.3.8** App Router） | SPA + `/api/*`（约 90 条路由）+ SSE |
-| 上游（随 `pi-dist` 分发） | `pi` | **1.1.0**（`@earendil-works/pi-coding-agent` 等） | 进程内 SDK；`packages/*` lockstep 1.1.0 |
-| 上游原生件 | `node-pty` | 1.2.0-beta.15 | `serverExternalPackages`；ABI 148 可加载性 ⬜ **P0-3** |
-
-壳层自身运行时依赖只有 `electron-squirrel-startup`；`next` / `@earendil-works/*` / `node-pty` 等全部来自
-`pi-dist`（随包的 `pi-dist.tar.gz`），**不参与壳层构建**。
-
-## 开发
-
-### 前置条件
-
-| 项 | 要求 |
+| Item | Approach |
 |---|---|
-| Node | **24.21.0**（官方二进制；与 Electron 43.7.9 内置版本一致）。上游门禁是 `>=22.19.0`，但门禁脚本必须与运行时同版才能代表真实行为 |
-| 同级工程 | `../pi`（submodule，`Branch_v1.1.0`）、`../pi-web`（submodule，`Branch_v0.11.1`）—— 本工程用 **sibling 源码引用**，不用 npm 依赖 |
-| 包管理 | `npm`（`npm ci` 消费各自的 lockfile） |
-| git | 克隆 submodule、`pin:upstream` 记录 SHA、`git/worktree` 能力验证 |
-| Linux 打包 | `fakeroot` + `rpm`（CI 已装） |
-| 可选 | `ELECTRON_MIRROR`（Electron 二进制下载慢时设置） |
+| UI copy | at build time, the spaced literal `Pi Web` → `Pi Desktop` inside the `pi-dist` copy (measured this round: **1035 occurrences / 36 files**); technical identifiers (`pi-web`, `PI_WEB_*`, `PiWeb`, …) keep **identical counts before/after** (757 → 757) |
+| Page logo | only the **rendered** `<img src>` is rewritten to the vector asset `/icons/logo.svg` (6 places); the `rel="apple-touch-icon"` metadata and the `public/sw.js` precache list are **left alone** |
+| Web bitmap icons | `public/icons/{icon-512,icon-192,apple-touch-icon}.png` plus the `favicon.ico` route body are generated from the assets and verified by **reading back the IHDR** (512² rgb24 opaque; the rest carry alpha) |
+| App icons | `resources/{icon.png,icon.ico,icon.icns,tray.png,trayTemplate.png}` are **byte-for-byte** copies of the assets; the window icon explicitly uses them |
+| Asset source | the **parent project's `<workspace>/assets/`** (single source of truth; missing / wrong size / wrong transparency ⇒ **build failure**), mirrored into `resources/brand/` for CI |
+| Version check | the runtime sets `PI_WEB_SKIP_VERSION_CHECK=1`: `/api/app-update` returns `updateAvailable=false` and `releaseUrl=""` while **still reporting `currentVersion`** (measured `0.11.1`); the shell's own "check for updates" is the only update path |
+| Implementation | `scripts/brand-assets.mjs` (also runnable as `npm run brand`) wired into `scripts/collect-pi.mjs`; three layers of post-assertions plus a whole-tree final check (`Pi Web` = 0 occurrences) |
 
-> 为什么 `pi` / `pi-web` 必须是同级源码而不是 npm 依赖：`pi-web` 的 `.next` 必须在**本机可再生**地构建
-> （我们要控制 `serverExternalPackages`、按目标平台裁剪原生件、并在打包前完成预览密钥轮换）；
-> 且 `pi-web` 依赖 `pi` 的**精确版本 1.1.0**，源码引用可保证两边同源同版本（规划 §2.5）。
+## Capabilities
 
-### 四阶段构建流水线
+Legend: **✅ measured** | **⚠️ conditional / limited** | **⬜ not yet measured** (with the probe that will produce the verdict) | **❌ explicitly out of scope**.
+The full three-platform matrix, evidence column and degradation matrix live in
+**[docs/桌面能力清单.md](docs/桌面能力清单.md)**; per-round evidence in
+**[docs/构建验证记录.md](docs/构建验证记录.md)** (Windows rounds 1 and 2).
+
+| Capability | Windows | Notes |
+|---|---|---|
+| Pi Web UI (main screen, same-origin) | ✅ | packaged first screen reached; UI marker hit; `document.title = Pi Desktop` |
+| In-process Next server + agent | ✅ | `startServer({dir,…})` listens, all `/api/*` return 200, main process stays alive, preview secrets rotated (P0-1) |
+| Session persistence / resume (JSONL) | ✅ | session created (200), first SSE chunk arrives, a real conversation returns a reply (P0-2 / TC-14) |
+| Models and credentials (API key) | ✅ | set a DeepSeek API key in the packaged app → one real conversation succeeded (shares `~/.pi/agent/auth.json`) |
+| File tools (read/write/edit/list/images) | ✅ | used by the agent; provided by the upstream SDK, no platform constraints |
+| Terminal panel / PTY | ✅ | `node-pty` **loads** under ABI 148 and runs a command (`POST /api/terminal` → write → output received on the stream) |
+| MCP (stdio / HTTP) | ⬜ | no subprocess constraints on desktop, expected to work; not measured item by item |
+| `git` / worktree / diff | ⬜ | requires `git` on the machine; upstream degrades silently when missing |
+| Content search (`rg`/`fd`) | ⚠️ | needs a system install or a permitted download; unavailable offline (`PI_OFFLINE=1`) |
+| Extension / skill install | ⚠️ | needs `npm`/`git` and network; the upstream UI already manages them |
+| Tray / single instance / window state | ✅ | tray created; single-instance lock + recall; window state persisted |
+| Native notifications | ✅ | only when the window is hidden/unfocused; 10 s per-session cooldown dedupe; no backlog on startup; measured latency **2054 ms** |
+| Browser secure context (`crypto.subtle` / `localStorage`) | ✅ | loopback counts as a trusted origin: `isSecureContext=true`, SHA-256 computed, localStorage read/write OK |
+| `window.open` interception | ✅ | returns `null`; external links go to the system browser |
+| Update check (semi-automatic) | ✅ | "check → open the download page"; **no auto-download, no silent install** |
+| Deep links / auto-start / global shortcuts / multi-window | ❌ | explicitly out of scope (revisit in Phase 2 if needed) |
+| Code signing / notarization / silent update | ❌ | not in v1; registered for Phase 3 |
+| Cross-platform packaging | ❌ | each platform builds its own artifacts (native modules must match the target) |
+
+## Target platforms and distribution
+
+| Platform | Artifacts | Install experience (**unsigned**) | Status |
+|---|---|---|---|
+| Windows (primary) | Squirrel `Pi Desktop-<version> Setup.exe` + `.nupkg` + `RELEASES`, `zip` | direct install; SmartScreen shows "More info → Run anyway" | ✅ measured: `make` → install → launch to first screen → uninstall (below) |
+| macOS | `.dmg` + `zip` | requires **right-click → Open**, or `xattr -dr com.apple.quarantine "/Applications/Pi Desktop.app"` | ⬜ never run on macOS |
+| Linux | `.deb` + `.rpm` + `zip` | direct install (no mandatory signing gate) | ⬜ never run on Linux |
+
+**Measured Windows numbers (round 2)**: `Pi Desktop-0.11.1 Setup.exe` = **351,521,280 B**; installed to
+`%LOCALAPPDATA%\pi_desktop\app-0.11.1`; launching the **installed copy** reaches the first screen
+(re-running `probe-renderer` against it still gives 7 PASS / 0 FAIL); after uninstall the registry entry
+is gone and **0 orphan processes** remain.
+⚠️ Squirrel's uninstall keeps the install root (`Update.exe` + a shell directory, ≈2.7 MB measured) and
+`<userData>` is kept by design — see [docs/发布与更新.md](docs/发布与更新.md) §4 "uninstall behaviour and residue".
+
+Release flow, artifact list, unsigned-install guidance and update behaviour: **[docs/发布与更新.md](docs/发布与更新.md)**.
+`.github/workflows/release.yml` is triggered by a **tag `v*`** push (or manual `workflow_dispatch`),
+builds the three-OS matrix and publishes the Release assets.
+
+## Technology stack
+
+| Layer | Component | Version | Notes |
+|---|---|---|---|
+| Runtime | Electron | **43.7.9** (pinned, no `^`) | Node **24.21.0** / Chromium **150.0.7871.250** / ABI **148** |
+| Runtime | Node (bundled with Electron) | 24.21.0 | satisfies upstream `engines.node >= 22.19.0`; none of the HarmonyOS Node-mismatch reasoning applies |
+| Build | Electron Forge | `^7.11.2` | `@electron-forge/plugin-vite` + `@electron/fuses` `^1.8.0` |
+| Build | Vite | `^7.3.6` (`vite.{main,preload,renderer}.config.ts`) | main entry `src/main/index.ts` → `.vite/build/main.js` |
+| Build | TypeScript | `^5.6.0` (strict, `tsc --noEmit`) | `@types/node` `^24.3.0` |
+| Build | makers | 5 Forge makers | Squirrel(win) / ZIP(win,mac,linux) / DMG(mac) / RPM(linux) / DEB(linux) |
+| CI | Node | **24.21.0** | same version as the runtime (the gate starts the server with the same Node) |
+| Upstream (shipped inside `pi-dist`) | `pi-web` | **0.11.1** (Next **16.3.8** App Router) | SPA + `/api/*` (~90 routes) + SSE |
+| Upstream (shipped inside `pi-dist`) | `pi` | **1.1.0** (`@earendil-works/pi-coding-agent`, …) | in-process SDK; `packages/*` locked at 1.1.0 |
+| Upstream native module | `node-pty` | 1.2.0-beta.15 | `serverExternalPackages`; **measured loadable under ABI 148** (round 2) with a build-time completeness gate (`FR-010-027`) |
+
+The shell's only runtime dependency is `electron-squirrel-startup`; `next` / `@earendil-works/*` /
+`node-pty` all come from `pi-dist` (the shipped `pi-dist.tar.gz`) and are **not part of the shell build**.
+
+## Development
+
+### Prerequisites
+
+| Item | Requirement |
+|---|---|
+| Node | **24.21.0** (official binary; matches the version bundled with Electron 43.7.9). The upstream gate is `>=22.19.0`, but the gate script must match the runtime to represent real behaviour |
+| Sibling projects | `../pi` (submodule, `Branch_v1.1.0`), `../pi-web` (submodule, `Branch_v0.11.1`) — this project uses **sibling source references**, not npm dependencies |
+| Brand assets | `../assets/` (parent project: `logo.svg`, `logo.png`, `logo-1024-with-bg.png`, `logo-200-with-bg.png`, `logo.ico`, `logo.icns`) — missing assets fail the build (override with `--assets` or `PI_ASSETS_DIR`) |
+| Package manager | `npm` (`npm ci` against each lockfile) |
+| git | clone submodules, `pin:upstream` records SHAs, `git/worktree` capability checks |
+| Linux packaging | `fakeroot` + `rpm` (installed in CI) |
+| Optional | `ELECTRON_MIRROR` (slow Electron binary downloads), `ffmpeg` (needed to generate the web bitmap icons) |
+
+> Why `pi` / `pi-web` must be sibling sources rather than npm dependencies: `pi-web`'s `.next` has to be
+> built **reproducibly on this machine** (we control `serverExternalPackages`, prune native modules per
+> target platform, and rotate preview secrets before packaging), and `pi-web` pins `pi` to **exactly
+> 1.1.0**, so a source reference keeps both sides in lockstep (plan §2.5).
+
+### Four-stage build pipeline
 
 ```bash
-# ① 构建 pi-web 生产产物（../pi-web：npm ci → next build → 按目标平台裁剪 → 轮换预览密钥）
+# 1. build pi-web's production output (../pi-web: npm ci → native-dependency check → next build)
 node scripts/prepare-next.mjs
 
-# ② 门禁：用与 Electron 43.7.9 同版 Node（24.21.0）起服务，断言 SPA / API / SSE / SDK 四项
+# 2. gate: start the server with the same Node as Electron 43.7.9 (24.21.0); assert SPA / API / SSE / SDK
 node scripts/smoke-desktop.mjs
 
-# ③ 组装 pi-dist（pi-web 产物 + @earendil-works/* + 预置模板）→ tar.gz(ustar) + SHA-256 marker
+# 3. assemble pi-dist (pi-web output + @earendil-works/* + preset templates) → brand → final check → tar.gz(ustar) + SHA-256 marker
 node scripts/collect-pi.mjs
 
-# ④ 打包（premake 会自动跑 ①→③，确保一条命令可复现）
-npm run make            # 出安装包，产物在 out/make/
-npm run package         # 仅打包目录，不出安装包
+# 4. package (premake runs 1→3 automatically so one command reproduces everything)
+npm run make            # installers, output in out/make/
+npm run package         # packaged directory only, no installers
 ```
 
-等价写法（`package.json` 里已定义同名 script，供不想敲路径时使用）：
+Equivalent npm scripts:
 
 ```bash
 npm run prepare:next    # = node scripts/prepare-next.mjs
 npm run smoke           # = node scripts/smoke-desktop.mjs
 npm run collect:pi      # = node scripts/collect-pi.mjs
-npm run pin:upstream    # 记录 ../pi 与 ../pi-web 的 commit SHA → upstream.lock.json
+npm run brand           # = node scripts/brand-assets.mjs (asset validation + icon freeze + pi-dist branding)
+npm run pin:upstream    # record ../pi and ../pi-web commit SHAs → upstream.lock.json
+npm run probe:renderer  # renderer/terminal assertions against a **running** app (needs --debug-port)
 ```
 
-> ⚠️ 裁剪原生件只在**副本**（`pi-dist`）上做，绝不在 `../pi-web` 源目录里删；
-> 三平台**各自构建各自产物**，不做交叉打包（否则 `node-pty` / SWC 的原生件会错平台）。
+> ⚠️ Native-module pruning happens only on the **copy** (`pi-dist`), never inside the `../pi-web` source
+> tree; each platform builds its own artifacts (cross-packaging would ship the wrong native modules for
+> `node-pty` / SWC).
+>
+> ⚠️ Native-dependency completeness is part of the build gate (`FR-010-027`): `prepare-next` verifies that
+> `node-pty` actually has `build/Release/*.node` or `prebuilds/<platform>-<arch>/*.node`; **an empty shell
+> directory fails the build** with a fix recipe. Reason: upstream `scripts/prebuild.js` only checks whether
+> the directory exists, so an empty one is mistaken for "prebuilt" and `node-gyp` is skipped — the symptom
+> only surfaces at runtime as a terminal HTTP 500 (hit on this machine).
 
-### 运行
+### Running
 
 ```bash
-npm ci && npm start     # Electron Forge + Vite；主进程热重载，渲染层是远程 URL（用 DevTools 调）
+npm ci && npm start     # Electron Forge + Vite; main-process hot reload, renderer is a remote URL (debug via DevTools)
 ```
 
-`npm start` 需要已解压的 `pi-dist`：首次请先跑流水线 ①②③，或用下面的 `PI_DESKTOP_PI_DIST` 指到已有目录。
-打包态（安装后）首次启动会自行解压 `<resources>/pi-dist.tar.gz` → `<userData>/pi-dist`。
+`npm start` needs an extracted `pi-dist`: run pipeline stages 1–3 first, or point `PI_DESKTOP_PI_DIST`
+at an existing directory. The packaged app extracts `<resources>/pi-dist.tar.gz` into
+`<userData>/pi-dist` on first launch (~2 minutes for tens of thousands of files; skipped when the marker matches).
 
-### 调试
+### Debugging
 
 ```bash
-# 服务端 / UI 直连调试（跳过解压与内嵌服务器）：先在 ../pi-web 里起一个服务
+# Direct server/UI debugging (skips extraction and the embedded server): first run a server in ../pi-web
 cd ../pi-web && npm ci && npm run build && npm start   # http://127.0.0.1:30141
 
-# 回到本工程，让壳层直连它
+# Back in this project, point the shell at it
 PI_DESKTOP_DEV_SERVER=http://127.0.0.1:30141 npm start   # Git Bash
 # PowerShell: $env:PI_DESKTOP_DEV_SERVER='http://127.0.0.1:30141'; npm start
 ```
 
-**环境变量开关（仅用于开发调试，生产不使用）**
+**Environment switches (development only; never used in production)**
 
-| 变量 | 作用 | 状态 |
+| Variable | Purpose | Status |
 |---|---|---|
-| `PI_DESKTOP_DEV_SERVER` | 直连一个已运行的 pi-web（跳过解压与内嵌服务器），快速迭代 UI/服务端而不必反复打包 | 已落地：`src/main/index.ts` |
-| `PI_DESKTOP_PI_DIST` | 指定一个**已解压**的 `pi-dist` 目录（跳过解压与 marker 校验，但会校验 Next 入口与 `@earendil-works/pi-coding-agent` 是否在） | 已落地：`src/main/artifact.ts` |
+| `PI_DESKTOP_DEV_SERVER` | attach to an already-running pi-web (skips extraction and the embedded server) for fast UI/server iteration | implemented: `src/main/index.ts` |
+| `PI_DESKTOP_PI_DIST` | point at an **extracted** `pi-dist` directory (skips extraction and the marker check); the value is resolved to an absolute path so it survives `chdir` | implemented: `src/main/artifact.ts` |
+| `PI_DESKTOP_HOST_MODE=spawn` | explicitly use the sidecar (`next start` child) instead of the in-process host, for A/B diagnosis | implemented: `src/main/host.ts` |
 
-其它诊断手段：
+Other diagnostics:
 
-- **日志**：`<userData>/logs/pi-desktop-<YYYYMMDD>.log`，统一前缀 `[pi-desktop]`；启动每个阶段都落盘，
-  凭据只打印长度、**永不回显** `PI_WEB_PASSWORD` 明文。
-- **loading / 兜底页**：`index.html` + `src/renderer/renderer.ts`，显示当前阶段与耗时，并提供
-  「打开日志」「重试」「退出」三个动作；失败时显示**具体阶段 + 原因**。
-- **主进程调试**：`--inspect` 仅限 dev（生产构建必须移除；Fuses 已关 `EnableNodeCliInspectArguments`）。
-- **数据落点**：默认 `PI_CODING_AGENT_DIR = ~/.pi/agent`（与 CLI 共享凭据/会话/扩展/MCP）；
-  设置里可切到 `<userData>/pi-agent`（`<userData>/pi-desktop-settings.json` 的 `agentDirMode`，
-  **切换后必须重启应用**）。⚠️ 不要与 `pi` CLI 对同一会话并发写入（上游明确不支持）。
+- **Logs**: `<userData>/logs/pi-desktop-<YYYYMMDD>.log`, uniformly prefixed `[pi-desktop]`; every startup
+  stage is logged, and credentials are only reported by length — `PI_WEB_PASSWORD` is **never echoed**.
+- **Loading / fallback page**: `index.html` + `src/renderer/renderer.ts` show the current stage and elapsed
+  time, and offer "open logs" / "retry" / "quit"; failures display the **exact stage and reason**.
+- **Main-process debugging**: `--inspect` is development-only (production builds must drop it; the Fuse
+  `EnableNodeCliInspectArguments` is disabled).
+- **Data location**: defaults to `PI_CODING_AGENT_DIR = ~/.pi/agent` (sharing credentials, sessions,
+  extensions and MCP with the CLI); settings can switch it to `<userData>/pi-agent` (the `agentDirMode`
+  key in `<userData>/pi-desktop-settings.json`; **restart required**). ⚠️ Do not write to the same session
+  concurrently with the `pi` CLI (explicitly unsupported upstream).
 
-### 门禁
+### Gates and probes
 
 ```bash
-npm run typecheck                # strict TS（tsc --noEmit）
-node scripts/smoke-desktop.mjs   # 服务端四项断言：SPA / 带凭据 API / SSE / pi SDK 建会话
+npm run typecheck                # strict TS (tsc --noEmit)
+node scripts/smoke-desktop.mjs   # four server assertions: SPA / credentialed API / SSE / pi SDK session
+
+# Packaged end-to-end (start the packaged app first, then assert against the **running** instance; the probe never starts or stops processes)
+"out/Pi Desktop-win32-x64/pi-desktop.exe" --remote-debugging-port=9333
+node scripts/probe-renderer.mjs --debug-port 9333 --cwd <writable dir>   # R1–R7
 ```
 
-两条必须全绿才允许打包与发布；CI（`.github/workflows/ci.yml`）以同样两条为准。
+`typecheck` and `smoke` must both be green before packaging or releasing; CI
+(`.github/workflows/ci.yml`) enforces the same two (in the order
+`prepare-next → collect-pi → smoke → make`).
 
-## 目录结构
+## Repository layout
 
-本工程与同级工程**并行存放**（`pi-workspace` 是 submodule 容器仓库，构建脚本用 `../兄弟目录` 解析）：
+This project sits **side by side** with its siblings (`pi-workspace` is a submodule container repo and the
+build scripts resolve `../sibling` paths):
 
 ```
 pi-workspace/
-├── pi/                          # [submodule] 上游宿主 + SDK，固定 Branch_v1.1.0
-├── pi-web/                      # [submodule] 上游 UI + 服务端，固定 Branch_v0.11.1
-├── pi-desktop/                  # [submodule] ← 本工程（Electron 桌面壳）
-│      ├─ ../pi      （宿主 + SDK）  ← 构建期：npm install（产出 @earendil-works/* 依赖树）
-│      └─ ../pi-web  （UI + 服务端） ← 构建期：npm ci + next build → 组装 pi-dist
-├── pi-desktop-hos/              # [submodule] 鸿蒙版（独立工程；本工程只复用结论与 2 个可移植模块）
-├── pi-desktop-website/          # [submodule] 官网/下载页（规划中；更新检查的候选数据源）
-├── harmonypc-electron/          # [submodule] Electron-on-鸿蒙 运行时（本工程不使用）
-└── harmonypc-electron-versions/ # （普通目录，gitignore）鸿蒙运行时归档（本工程不使用）
+├── pi/                          # [submodule] upstream host + SDK, pinned to Branch_v1.1.0
+├── pi-web/                      # [submodule] upstream UI + server, pinned to Branch_v0.11.1
+├── assets/                      # brand assets (parent project; consumed here as ../assets)
+├── pi-desktop/                  # [submodule] ← this project (Electron desktop shell)
+│      ├─ ../pi      (host + SDK)    ← build time: npm install (produces the @earendil-works/* tree)
+│      └─ ../pi-web  (UI + server)   ← build time: npm ci + next build → assemble pi-dist
+├── pi-desktop-hos/              # [submodule] HarmonyOS port (separate project; we only reuse its findings and 2 portable modules)
+├── pi-desktop-website/          # [submodule] website / download page (candidate data source for the update check)
+├── harmonypc-electron/          # [submodule] Electron-on-HarmonyOS runtime (not used here)
+└── harmonypc-electron-versions/ # (plain directory) HarmonyOS runtime archives + Node header guides (not used here)
 ```
 
-本工程内部（规划结构，落地状态见下方「现状」）：
+Inside this project:
 
 ```
 pi-desktop/
-├── src/main/                       # Electron 主进程（装配代码，无业务逻辑）
-│   ├── index.ts                    # 入口编排：单实例锁 → 安全准备 → whenReady → 起宿主 → 建窗 → 托盘/通知 → 退出
-│   ├── host.ts                     # 进程内 Next 宿主：环境装配、startServer、就绪轮询、鉴权注入、关闭
-│   ├── artifact.ts                 # pi-dist 解压 + SHA-256 marker 幂等
-│   ├── tar-extract.ts              # 流式 ustar(.gz) 解压器（移植自 pi-desktop-hos）
-│   ├── windows.ts                  # BrowserWindow + loading 页 + 加载策略 + 导航加固 + 权限白名单
-│   ├── window-state.ts             # window-state.json 持久化（防抖 / 边界校验）
-│   ├── tray.ts                     # 托盘与菜单
-│   ├── notifications.ts            # 会话 JSONL 尾随 → 原生通知（去重 / 冷却 / 仅后台）
-│   ├── session-watch.ts            # 会话文件增量 tail（被 notifications 消费）
-│   ├── lifecycle.ts                # NO_PROXY / 系统 CA / 崩溃兜底 / 优雅关闭 / 代理绕过
-│   ├── settings.ts                 # 壳层设置（agentDirMode 等）读写
-│   ├── update-check.ts             # 检查更新（半自动）
-│   └── logger.ts                   # [pi-desktop] 统一日志 → <userData>/logs
-├── src/preload/index.ts            # 默认空实现（按需启用最小桥；数据面永不过 IPC）
-├── src/renderer/renderer.ts        # 壳层自有页面（loading / 降级页）驱动
-├── index.html                      # 兜底 / loading 页（CSP: default-src 'self'）
+├── src/main/                       # Electron main process (assembly code, no business logic)
+│   ├── index.ts                    # entry orchestration: lock → security prep → whenReady → host → window → tray/notifications → exit
+│   ├── host.ts                     # in-process Next host: env assembly, secret rotation, chdir to artifact root, startServer, readiness, auth injection, shutdown
+│   ├── artifact.ts                 # pi-dist extraction + SHA-256 marker idempotence + PI_DESKTOP_PI_DIST escape hatch
+│   ├── tar-extract.ts              # streaming ustar(.gz) extractor (ported from pi-desktop-hos)
+│   ├── windows.ts                  # BrowserWindow + loading page + load strategy + navigation hardening + permission allowlist + window icon
+│   ├── window-state.ts             # window-state.json persistence (debounced, bounds-checked)
+│   ├── tray.ts                     # tray and menu
+│   ├── notifications.ts            # session JSONL tailing → native notifications (cooldown / dedupe / background only)
+│   ├── session-watch.ts            # incremental session-file tail (consumed by notifications)
+│   ├── lifecycle.ts                # NO_PROXY / system CAs / crash fallback / graceful shutdown / proxy bypass
+│   ├── settings.ts                 # shell settings (agentDirMode, …) read/write
+│   ├── update-check.ts             # update check (semi-automatic)
+│   └── logger.ts                   # [pi-desktop] unified logging → <userData>/logs
+├── src/preload/index.ts            # empty by default (a minimal bridge can be enabled; the data path never uses IPC)
+├── src/renderer/renderer.ts        # drives the shell-owned pages (loading / fallback)
+├── index.html                      # fallback / loading page (CSP: default-src 'self')
 ├── resources/                      # icon.ico / icon.icns / icon.png / tray.png / trayTemplate.png
-├── config/                         # 预置模板（settings.json / mcp.json / trust.json 默认值）
-├── extensions/ , skills/           # 壳专用 pi 扩展与技能（可选）
+├── resources/brand/                # asset mirror (committed, so CI works without the parent project)
+├── config/                         # preset templates (settings.json / mcp.json defaults)
 ├── scripts/
-│   ├── prepare-next.mjs            # ① ../pi-web：npm ci → next build → 平台裁剪 → 预览密钥轮换
-│   ├── smoke-desktop.mjs           # ② 门禁：Node 24.21 起服务 + SPA/API/SSE/SDK 四项断言
-│   ├── collect-pi.mjs              # ③ 组装 pi-dist + tar.gz(ustar) + SHA-256 marker
-│   └── pin-upstream.mjs            # 记录 ../pi 与 ../pi-web 的 commit SHA（upstream.lock.json）
-├── forge.config.ts                 # packagerConfig（asar / extraResource / executableName）+ makers + plugins
+│   ├── prepare-next.mjs            # 1. ../pi-web: npm ci → native-dependency check → next build
+│   ├── smoke-desktop.mjs           # 2. gate: start the server with Node 24.21 + SPA/API/SSE/SDK assertions
+│   ├── collect-pi.mjs              # 3. assemble pi-dist → brand → final check → tar.gz(ustar) + SHA-256 marker
+│   ├── brand-assets.mjs            # asset validation/freeze + pi-dist copy·logo·icon branding + three assertion layers
+│   ├── probe-renderer.mjs          # packaged renderer/terminal probe (R1–R7 over CDP)
+│   └── pin-upstream.mjs            # record ../pi and ../pi-web commit SHAs (upstream.lock.json)
+├── forge.config.ts                 # packagerConfig (asar / extraResource / executableName) + makers + plugins
 ├── vite.{main,preload,renderer}.config.ts , tsconfig.json , forge.env.d.ts
 ├── .github/workflows/{ci.yml,release.yml}
-├── specs/                          # NNN-name/{spec.md,plan.md}
-├── docs/                           # 工程规划 + 桌面能力清单 + 构建验证记录 + 发布与更新
-├── upstream.lock.json              # 上游 commit SHA 钉住（可复现）
-└── README.md
+├── specs/                          # NNN-name/{spec.md,plan.md[,test-cases.md]} (001…012 + 201)
+├── docs/                           # engineering plan + desktop capability list + build/verification log + release & update
+├── upstream.lock.json              # pinned upstream commit SHAs (reproducibility; generated at build time)
+├── README.md / README_zh.md        # this file (English / Chinese)
+└── logs/                           # per-round build and device-verification evidence (not committed)
 ```
 
-### 现状（骨架已落地，**Phase 0 尚未取证**）
+### Current status
 
-| 状态 | 内容 |
+| Status | Contents |
 |---|---|
-| ✅ 已落地 | `package.json`（全部 scripts + `prepackage`/`premake` 钩子）、`forge.config.ts`、`vite.{main,preload,renderer}.config.ts`、`tsconfig.json`、`forge.env.d.ts`、`index.html`、`.gitignore`、`.gitattributes`、`LICENSE`；`src/main/**`（`index` / `host` / `artifact` / `tar-extract` / `windows` / `window-state` / `tray` / `notifications` / `session-watch` / `lifecycle` / `settings` / `update-check` / `logger` / `constants`）、`src/preload/index.ts`、`src/renderer/renderer.ts`、`src/types/globals.d.ts`；`scripts/{prepare-next,smoke-desktop,collect-pi,pin-upstream}.mjs`；`resources/{icon.ico,icon.icns,icon.png,tray.png,trayTemplate.png}`；`config/{settings.json,mcp.json}`；`.github/workflows/{ci.yml,release.yml}`；`specs/`（`README` / `constitution` / `ARCHITECTURE` / `TECH` / `STRUCTURE` / `overall-{spec,plan}` + `001-host`、`002-window`） |
-| ⬜ 待产出（构建物，gitignore） | `pi-dist.tar.gz` + `pi-dist.version`（跑流水线 ①③ 后生成）、`upstream.lock.json`（跑 `pin:upstream` 后生成）、`out/`、`.vite/`、`logs/` |
-| ⬜ 待落地（可选/后续） | `extensions/`、`skills/`（壳专用扩展与技能，Q7 的可选档）、`specs/003…011` + `201-plugin-runtime` |
-| ⬜ 未取证 | **全部运行期结论**（首屏、终端、通知、打包冒烟、安装包体积、首启耗时）→ 逐项见 [docs/桌面能力清单.md](docs/桌面能力清单.md) 与 [docs/构建验证记录.md](docs/构建验证记录.md) |
+| ✅ Implemented | `src/main/**` (14 modules), `src/preload`, `src/renderer`, 6 build/probe scripts, `resources/` (including the brand mirror), `config/`, Forge + Vite + TS config, `.github/workflows/{ci,release}.yml`, `specs/` (`001`–`012` paired, `201` undecided), the four `docs/` documents |
+| ✅ Measured (Windows) | packaged first screen, in-process host, branding (copy/logo/icons/version check), cross-drive default layout startup, PTY, native notifications, Squirrel install → launch → uninstall (see [docs/构建验证记录.md](docs/构建验证记录.md) rounds 1 and 2) |
+| ⬜ Not yet measured | the full macOS / Linux paths; `make`'s dmg/deb/rpm install experience; P0-4's "memory curve during extraction"; item-by-item verification of MCP / `git` / search tools; the **visual** appearance of the tray and notifications (beyond the programmable criteria) |
+| ⬜ Still to land | `extensions/`, `skills/` (shell-specific extensions and skills, optional tier); end-to-end evidence for the parts of `specs/003`–`011` that only have specs; the `patches/` directory (plan §7 requires it with a written "empty for this version" note — the repo has none yet); the `config/trust.json` preset template (listed in plan §6.2; only `settings.json` / `mcp.json` exist) |
+| ❌ Explicitly out of scope | deep links / auto-start / global shortcuts / multi-window; code signing / notarization / silent update; cross-platform packaging |
 
-注 1：本表是「README 建档时点」的快照；文件是否齐备以仓库现状为准（`git status` / `ls`），
-结论是否成立一律以 `docs/构建验证记录.md` 的探针记录为准。
-注 2：两条门禁在 CI 里的实际执行顺序是 `prepare-next → collect-pi → smoke → electron-forge make`
-（`.github/workflows/ci.yml`）；smoke 仍是阻断项，只是放在 collect 之后执行。
-注 3：**与规划的已知落差**（需补，见 `docs/工程规划.md`）：① 规划 §7 要求建立 `patches/` 目录并写明「本版本为空」，仓库目前没有该目录；② 规划 §6.2 / `specs/ARCHITECTURE.md` 列出预置模板 `config/trust.json`，
-而 `config/` 只有 `settings.json`、`mcp.json`（`src/main/settings.ts` 也只物化这两个）。
+Note: this table is a README snapshot — file presence is governed by the repository (`git status` / `ls`),
+and verdicts are governed by the round log in [docs/构建验证记录.md](docs/构建验证记录.md) and the
+capability matrix in [docs/桌面能力清单.md](docs/桌面能力清单.md).
 
-## 相关文档
+## Related documents
 
-| 文档 | 内容 |
+| Document | Contents |
 |---|---|
-| [docs/工程规划.md](docs/工程规划.md) | **工程规划**：架构、结构、流水线、能力与降级、分阶段计划、风险（source of truth） |
-| [docs/桌面能力清单.md](docs/桌面能力清单.md) | 三平台 × 能力矩阵、降级矩阵、证据标注、与鸿蒙版的能力差异 |
-| [docs/构建验证记录.md](docs/构建验证记录.md) | 每轮构建/实机验证的台账 + Phase 0 探针（P0-0…P0-6）出口判据 |
-| [docs/发布与更新.md](docs/发布与更新.md) | 版本策略、CI/Release 工作流、三平台产物、未签名安装指引、更新行为与升级语义 |
-| [specs/](specs/) | 模块规格（`NNN-name/{spec.md,plan.md}`，编号 `001-host`…`011-release-update`、`201-plugin-runtime`）+ `specs/{README,constitution,ARCHITECTURE,TECH,STRUCTURE,overall-spec,overall-plan}.md`；已建 `001-host`、`002-window` |
+| [docs/工程规划.md](docs/工程规划.md) | **Engineering plan**: architecture, structure, pipeline, capabilities and degradation, phased plan, risks (source of truth) |
+| [docs/桌面能力清单.md](docs/桌面能力清单.md) | Three platforms × capability matrix, degradation matrix, evidence tags, differences from the HarmonyOS port |
+| [docs/构建验证记录.md](docs/构建验证记录.md) | Ledger of every build/device round + Phase 0 probe (P0-0…P0-6) verdicts and evidence paths |
+| [docs/发布与更新.md](docs/发布与更新.md) | Version policy, CI/Release workflows, three-platform artifacts, unsigned-install guidance, uninstall residue, update behaviour and upgrade semantics |
+| [specs/](specs/) | Module specs (`NNN-name/{spec.md,plan.md}`) and project-level documents (`README` / `constitution` / `ARCHITECTURE` / `TECH` / `STRUCTURE` / `overall-{spec,plan}`) |
 
-## 上游声明与许可
+## Upstream notice and license
 
-- **本工程非官方**：由第三方（`fellow99`）独立实现，与 Pi / Pi Web 上游作者无隶属关系，未获其背书。
-- **不 fork、只装配**：本版必需补丁 **0 条**（逐条理由见规划 §7）；对上游只做幂等处理，从不覆盖用户改动。
-- **上游许可**：[Pi](https://github.com/earendil-works/pi) MIT · [Pi Web](https://github.com/agegr/pi-web) MIT。
-  随包分发的 `pi-dist.tar.gz` 内含上游产物，其许可与版权归上游所有；本工程代码为 MIT（见 [LICENSE](LICENSE)）。
-- **名称声明**：本工程名称含 `pi`，仅为说明被封装的上游项目；应用内「关于」页同样标注以上声明。
+- **Unofficial**: independently implemented by a third party (`fellow99`), with no affiliation to or
+  endorsement from the Pi / Pi Web authors.
+- **Assemble, never fork**: this version needs **0 patches** (rationale item by item in plan §7); all
+  handling of upstream is idempotent and never overwrites user changes.
+- **Upstream licenses**: [Pi](https://github.com/earendil-works/pi) MIT ·
+  [Pi Web](https://github.com/agegr/pi-web) MIT. The shipped `pi-dist.tar.gz` contains upstream artifacts
+  whose license and copyright belong to the upstream authors; this project's own code is MIT
+  (see [LICENSE](LICENSE)).
+- **Name notice**: the name contains `pi` only to describe the upstream project being wrapped; the in-app
+  "About" page states the same notices.
