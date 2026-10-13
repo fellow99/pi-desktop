@@ -53,3 +53,5 @@
 ### 本轮发现（**不属 012 品牌化范围，登记待办**）
 
 - **终端 / PTY 在打包态不可用**：`POST /api/terminal` → 500 `Failed to load native module: conpty.node … Cannot find module './prebuilds/win32-x64/conpty.node'`。根因**不在本工程**：上游安装态 `../pi-web/node_modules/node-pty/prebuilds/win32-x64/` 只有一个**空的** `conpty/` 目录，**没有任何 `.node` 原生模块**（`build/Release/` 同样只有 `conpty/conpty.dll` + `OpenConsole.exe`）；带 `.node` 的只有 `win32-arm64`。`collect-pi` 的平台裁剪只删「非目标平台」目录（本机 x64 的保留项本来就是空的），**没有丢文件**（`pi-dist` 内 `.node` 共 7 个 = 上游 11 − 4 个非 Windows 平台项）。候选处置：重装/重建 `node-pty`（`npm rebuild node-pty` 或 `@electron/rebuild`）后重跑本用例；能力登记见 `docs/桌面能力清单.md` §A#1。证据：`13-probe-renderer.log`（R7）。
+
+**处置（2026-10-13 轮次 2，已完成）**：**根因更正** —— 上游 npm 发布包 `node-pty-1.2.0-beta.15.tgz` **内含** `prebuilds/win32-x64/{conpty.node,conpty_console_list.node,conpty/*,*.pdb}`（6 条目，已逐项 sha256 核对），所以「上游缺件」的说法**不成立**；真因是本机 `node_modules` 安装不完整只剩空壳目录，而 node-pty 的 `scripts/prebuild.js` **只看目录是否存在** ⇒ 误判「已预构建」⇒ 跳过 `node-gyp`。已按发布物恢复预构建 → 打包态 R7 转 **PASS**（`logs/20261013-0/18-probe-renderer.log`、`25-probe-renderer-installed.log` 均 7 PASS / 0 FAIL）；并在流水线加**构建期硬失败**守卫 `verifyNativeDeps()`（`FR-010-027`，见 `docs/构建验证记录.md` 轮次 2）。
