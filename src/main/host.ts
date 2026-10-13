@@ -5,7 +5,7 @@ import { existsSync } from 'node:fs';
 import { get as httpGet, type IncomingMessage } from 'node:http';
 import { createRequire } from 'node:module';
 import { createServer as createNetServer } from 'node:net';
-import { isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { join, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import {
@@ -438,6 +438,15 @@ export type StartHostOptions = {
   hostname?: string;
 };
 
+/** 路径等价比较：Windows 上盘符大小写、正/反斜杠差异不算不同（避免无意义 chdir 与误报）。 */
+function samePath(a: string, b: string): boolean {
+  const normalized = (p: string): string => {
+    const abs = resolve(p);
+    return process.platform === 'win32' ? abs.toLowerCase() : abs;
+  };
+  return normalized(a) === normalized(b);
+}
+
 /**
  * 启动宿主：轮换预览密钥 → 启动 Next（进程内优先）→ 返回句柄。
  * 任何失败都抛出，由入口 index.ts 转为 fail-visible 的界面与日志。
@@ -453,7 +462,7 @@ export async function startHost(options: StartHostOptions): Promise<PiWebServer>
   process.env.PI_WEB_PASSWORD = password;
   logInfo(`PI_WEB_HOSTNAME = ${hostname}｜PI_WEB_PASSWORD = ${password.length} 字符（不回显）`);
 
-  rotatePreviewSecrets(options.piDistRoot);
+  rotatePreviewSecrets(resolve(options.piDistRoot));
 
   const forcedMode = process.env.PI_DESKTOP_HOST_MODE;
   // ⚠️ Windows 上 **cwd 与产物根跨盘符** 会让 Next 的清单路径拼坏（现象是每个请求 500 → 就绪探测 30 s 超时，很难定位）：
@@ -466,21 +475,23 @@ export async function startHost(options: StartHostOptions): Promise<PiWebServer>
   //    evidence：logs/20261013-0/evidence/TC13-probe-A-crossdrive-no-chdir.log（同一探针去掉跨盘符、或 chdir 后即 200：
   //    TC13-probe-B-crossdrive-chdir.log）；打包态同一形态见 logs/20261013-0/04-packaged-run.log。
   //    修法与上游 `next start`（约定在项目根目录下执行）一致：**把进程工作目录切到产物根**，让该相对关系退化为 ''。
-  //    下面的守卫把这条不变式做成 fail-visible：跨盘符立刻报错，而不是静默等 30 s 就绪超时。
+  //    ⚠️ 注意**不要**在这里写「跨盘符就报错」的断言：chdir 之后 `path.relative(process.cwd(), dir)` 恒为 ''，
+  //    跨盘符失败模式已被**构造性消除**；那种断言永远不可能成立（等于死代码）。兜底是就绪探测（超时 → failVisible）。
   const distRootPath = resolve(options.piDistRoot);
-  if (resolve(process.cwd()) !== distRootPath) {
+  if (!samePath(process.cwd(), distRootPath)) {
     process.chdir(distRootPath);
     logInfo(`进程工作目录已切换到产物根（Next 项目根基准）：${process.cwd()}`);
   }
-  const relativeProjectDir = relative(process.cwd(), distRootPath);
-  if (isAbsolute(relativeProjectDir)) {
+  // 守卫只校验「chdir 真的生效」这一件可判定的事（大小写/正反斜杠差异不算不同，见 samePath）。
+  // 它兜的是「chdir 被静默挪走或平台拒绝切换」这类改动；本条路径的原始缺陷不会复现。
+  if (!samePath(process.cwd(), distRootPath)) {
     throw new Error(
-      `Next 项目根基准不可用：cwd=${process.cwd()} 与产物根 ${distRootPath} 跨盘符，`
-        + 'path.relative() 只能返回绝对路径，Next 的 join(cwd, 该值) 必然拼错清单路径。'
-        + '请让应用工作目录与产物根同盘（默认布局下由本函数 chdir 保证）。',
+      `进程工作目录切换失败：期望 ${distRootPath}，实际 ${process.cwd()}。`
+        + 'Next 用 join(cwd, path.relative(cwd, dir)) 还原项目根，cwd 不在产物根会让 .next 清单路径拼坏（每个请求 500）。',
     );
   }
-  // 目录串统一用正斜杠（与已实测通过的组合 exp-t1/t2c/t3b 一致）；原始路径只用于日志，便于对照。
+  // 目录串统一用正斜杠：这是本项目一贯的形态，且跨盘符修复后**仍然有效**的组合已实测（`logs/20261013-0/13-packaged-run.log`：
+  // cwd=`C:\…\Pi Desktop\pi-dist` 与 dir=`C:/…/Pi Desktop/pi-dist` 混用正反斜杠仍第 1 次探测即 200）；原始路径只用于日志。
   const posixDistRoot = distRootPath.split(sep).join('/');
   if (posixDistRoot !== distRootPath) {
     logInfo(`Next dir 规范化（Windows 路径兼容）：${posixDistRoot}｜原始：${distRootPath}`);

@@ -1,7 +1,7 @@
 import { app } from 'electron';
 import { createHash } from 'node:crypto';
 import { createReadStream, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
 import { ARCHIVE_NAME, MARKER_NAME, VERSION_NAME } from './constants';
 import { describeError, logInfo, logWarn } from './logger';
@@ -36,10 +36,13 @@ export function resolveArchivePath(): string {
 export function resolveEnvPiDist(): string | null {
   const raw = process.env.PI_DESKTOP_PI_DIST;
   if (!raw) return null;
-  const dir = raw.trim();
-  if (!dir) return null;
+  const value = raw.trim();
+  if (!value) return null;
+  // 立刻解析成**绝对路径**：调用链后面 `startHost()` 会 `process.chdir(<产物根>)`（见 host.ts），
+  // 若这里保留相对值，重试路径（boot → ensureArtifact → 本函数）会把它按**新的** cwd 解析而误报「目录不存在」。
+  const dir = resolve(value);
   if (!existsSync(dir)) {
-    throw new Error(`PI_DESKTOP_PI_DIST 指向的目录不存在：${dir}`);
+    throw new Error(`PI_DESKTOP_PI_DIST 指向的目录不存在：${dir}（已按启动时的 cwd 解析为绝对路径）`);
   }
   logInfo(`使用 PI_DESKTOP_PI_DIST 指定的产物目录：${dir}（跳过解压与 marker 校验）`);
   return dir;
