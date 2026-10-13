@@ -25,10 +25,14 @@ concurrency:
 
 env:
   NODE_VERSION: '24.21.0'
+  # 上游基线：上游仓库**没有** `Branch_v1.1.0` / `Branch_v0.11.1` 这类分支，等同物是 **tag**；
+  # 除按 tag 克隆外还断言 commit SHA（与 upstream.lock.json 一致）——上游重打 tag 会立刻失败（fail-visible）。
   PI_REPO: https://github.com/earendil-works/pi.git
-  PI_REF: Branch_v1.1.0
+  PI_REF: v1.1.0
+  PI_SHA: abe508e1b89912adde45528136c3221eb69acdd7
   PI_WEB_REPO: https://github.com/agegr/pi-web.git
-  PI_WEB_REF: Branch_v0.11.1
+  PI_WEB_REF: v0.11.1
+  PI_WEB_SHA: e78372193bcbf7a1986072704753550008554ead
 
 jobs:
   build:
@@ -45,13 +49,32 @@ jobs:
         with:
           path: pi-desktop
 
-      - name: Clone sibling pi（pinned）
+      - name: Clone sibling pi（pinned tag + SHA 断言）
         shell: bash
-        run: git clone --depth 1 --branch "$PI_REF" "$PI_REPO" pi
+        run: |
+          git clone --depth 1 --branch "$PI_REF" "$PI_REPO" pi
+          actual=$(git -C pi rev-parse HEAD)
+          echo "pi @ $actual（$PI_REF）"
+          test "$actual" = "$PI_SHA" || { echo "::error::pi 与钉住的 commit 不一致：期望 $PI_SHA，实际 $actual"; exit 1; }
 
-      - name: Clone sibling pi-web（pinned）
+      - name: Clone sibling pi-web（pinned tag + SHA 断言）
         shell: bash
-        run: git clone --depth 1 --branch "$PI_WEB_REF" "$PI_WEB_REPO" pi-web
+        run: |
+          git clone --depth 1 --branch "$PI_WEB_REF" "$PI_WEB_REPO" pi-web
+          actual=$(git -C pi-web rev-parse HEAD)
+          echo "pi-web @ $actual（$PI_WEB_REF）"
+          test "$actual" = "$PI_WEB_SHA" || { echo "::error::pi-web 与钉住的 commit 不一致：期望 $PI_WEB_SHA，实际 $actual"; exit 1; }
+
+      - name: Ensure ffmpeg（品牌化生成 web 位图图标所需；已装则跳过）
+        shell: bash
+        run: |
+          if command -v ffmpeg >/dev/null 2>&1; then ffmpeg -version | head -1; exit 0; fi
+          case "$RUNNER_OS" in
+            Windows) choco install ffmpeg -y --no-progress ;;
+            macOS)   brew install ffmpeg ;;
+            Linux)   sudo apt-get update && sudo apt-get install -y ffmpeg ;;
+          esac
+          ffmpeg -version | head -1
 
       - name: Setup Node ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v4
