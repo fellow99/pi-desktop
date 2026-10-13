@@ -1,0 +1,144 @@
+name: Release
+
+# 打 tag（v*）触发三平台构建 → 汇总资产 → 创建/更新 GitHub Release。
+#
+# 说明（已决策 Q5，见 docs/工程规划.md §11.3）：
+#   - **不签名、不公证**：Windows SmartScreen 会提示、macOS 需右键打开；
+#   - **不启用静默自动更新**：应用内只提供「检查更新 → 引导下载」；
+#     将来若启用 Squirrel 自动更新，`RELEASES` 与 `.nupkg` 必须一并上传（本工作流已包含）。
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '发布版本号（留空则用 tag 名）'
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '24.21.0'
+  PI_REPO: https://github.com/earendil-works/pi.git
+  PI_REF: Branch_v1.1.0
+  PI_WEB_REPO: https://github.com/agegr/pi-web.git
+  PI_WEB_REF: Branch_v0.11.1
+
+jobs:
+  build:
+    name: build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+
+    steps:
+      - name: Checkout pi-desktop
+        uses: actions/checkout@v4
+        with:
+          path: pi-desktop
+
+      - name: Clone sibling pi（pinned）
+        shell: bash
+        run: git clone --depth 1 --branch "$PI_REF" "$PI_REPO" pi
+
+      - name: Clone sibling pi-web（pinned）
+        shell: bash
+        run: git clone --depth 1 --branch "$PI_WEB_REF" "$PI_WEB_REPO" pi-web
+
+      - name: Setup Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: pi-desktop/package-lock.json
+
+      - name: Install Linux packaging tools
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y fakeroot rpm
+
+      - name: Install pi-desktop dependencies
+        working-directory: pi-desktop
+        run: npm ci
+
+      - name: Typecheck
+        working-directory: pi-desktop
+        run: npm run typecheck
+
+      - name: Pin upstream commits
+        working-directory: pi-desktop
+        run: node scripts/pin-upstream.mjs
+
+      - name: Build pi-web
+        working-directory: pi-desktop
+        run: node scripts/prepare-next.mjs
+
+      - name: Collect pi-dist
+        working-directory: pi-desktop
+        run: node scripts/collect-pi.mjs
+
+      - name: Smoke gate
+        working-directory: pi-desktop
+        run: node scripts/smoke-desktop.mjs
+
+      - name: Package installers
+        working-directory: pi-desktop
+        run: npx --no-install electron-forge make
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ runner.os }}
+          path: pi-desktop/out/make/**
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Ensure executable bits（Linux/macOS 资产）
+        run: chmod -R +x artifacts || true
+
+      - name: Show asset inventory
+        run: find artifacts -maxdepth 2 -type f | sort
+
+      - name: Create or update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.version || github.ref_name }}
+          fail_on_unmatched_files: false
+          generate_release_notes: true
+          files: |
+            artifacts/**/*.exe
+            artifacts/**/*.nupkg
+            artifacts/**/RELEASES
+            artifacts/**/*.zip
+            artifacts/**/*.dmg
+            artifacts/**/*.deb
+            artifacts/**/*.rpm
+          body: |
+            ## 安装与升级
+
+            - **Windows**：下载 `*.exe` 直接安装（未签名 → 可能出现 SmartScreen 提示，选择「仍要运行」）。
+            - **macOS**：下载 `*.dmg`，若系统提示「无法验证开发者」，请**右键 → 打开**（或执行
+              `xattr -dr com.apple.quarantine "/Applications/Pi Desktop.app"`）。
+            - **Linux**：下载 `*.deb` / `*.rpm` / `*.zip`（`.zip` 解压即用）。
+
+            升级无需手动清理：应用首次启动会校验 `pi-dist` 归档的 SHA-256，与当前包不一致时自动重新解压。
+
+            > 本发布未做代码签名与公证；应用内「检查更新」只会引导到本页面，不会静默下载或安装。

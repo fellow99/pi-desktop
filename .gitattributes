@@ -1,0 +1,14 @@
+# 补丁文件必须 LF：CRLF 会让 git apply 失败（参考工程踩坑记录）
+*.patch text eol=lf
+
+# shell 脚本
+*.sh text eol=lf
+
+# Windows 批处理
+*.ps1 text eol=crlf
+
+# 文本归档
+*.md text eol=lf
+*.json text eol=lf
+*.mjs text eol=lf
+*.ts text eol=lf

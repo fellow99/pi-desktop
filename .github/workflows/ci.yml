@@ -1,0 +1,96 @@
+name: CI
+
+# 三平台构建（Windows / macOS / Linux），每平台各自构建自己的产物（不做交叉打包）。
+# 与 dsh-desktop 的 501 方案同型：sibling 工程用 `git clone` 拉到与本工程平级的目录，
+# 因为 CI 只 checkout 本仓库，而构建脚本按 `../pi`、`../pi-web` 解析上游源码。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # 与运行时对齐：Electron 43.7.9 内置 Node 24.21.0
+  NODE_VERSION: '24.21.0'
+  # 上游基线（tag/分支固定，见 docs/工程规划.md 文档头）
+  PI_REPO: https://github.com/earendil-works/pi.git
+  PI_REF: Branch_v1.1.0
+  PI_WEB_REPO: https://github.com/agegr/pi-web.git
+  PI_WEB_REF: Branch_v0.11.1
+
+jobs:
+  build:
+    name: build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+
+    steps:
+      - name: Checkout pi-desktop
+        uses: actions/checkout@v4
+        with:
+          path: pi-desktop
+
+      - name: Clone sibling pi（pinned）
+        shell: bash
+        run: git clone --depth 1 --branch "$PI_REF" "$PI_REPO" pi
+
+      - name: Clone sibling pi-web（pinned）
+        shell: bash
+        run: git clone --depth 1 --branch "$PI_WEB_REF" "$PI_WEB_REPO" pi-web
+
+      - name: Setup Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: pi-desktop/package-lock.json
+
+      - name: Install Linux packaging tools
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y fakeroot rpm
+
+      - name: Install pi-desktop dependencies
+        working-directory: pi-desktop
+        run: npm ci
+
+      - name: Typecheck（strict TS 门禁）
+        working-directory: pi-desktop
+        run: npm run typecheck
+
+      - name: Pin upstream commits（可复现性证据）
+        working-directory: pi-desktop
+        run: node scripts/pin-upstream.mjs
+
+      - name: Build pi-web（npm ci + next build）
+        working-directory: pi-desktop
+        run: node scripts/prepare-next.mjs
+
+      - name: Collect pi-dist + tar.gz + SHA-256 marker
+        working-directory: pi-desktop
+        run: node scripts/collect-pi.mjs
+
+      - name: Smoke gate（必须先全绿才允许打包）
+        working-directory: pi-desktop
+        run: node scripts/smoke-desktop.mjs
+
+      - name: Package installers
+        working-directory: pi-desktop
+        # 直接用 electron-forge make：构建前置步骤已在上面的显式步骤里跑过，
+        # 避免 npm 的 premake 钩子把它们重复执行一遍。
+        run: npx --no-install electron-forge make
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ runner.os }}
+          path: pi-desktop/out/make/**
+          if-no-files-found: error
+          retention-days: 14

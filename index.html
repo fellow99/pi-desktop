@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'"
+    />
+    <title>Pi Desktop</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --fg: #1f2328;
+        --muted: #6a737d;
+        --bg: #ffffff;
+        --card: #f6f8fa;
+        --border: #d0d7de;
+        --accent: #0969da;
+        --error: #cf222e;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --fg: #e6edf3;
+          --muted: #8b949e;
+          --bg: #0d1117;
+          --card: #161b22;
+          --border: #30363d;
+          --accent: #4493f8;
+          --error: #ff7b72;
+        }
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--bg);
+        color: var(--fg);
+        font: 14px/1.6 -apple-system, "Segoe UI", "Microsoft YaHei", Roboto, sans-serif;
+      }
+      main { width: min(560px, 88vw); }
+      h1 { margin: 0 0 4px; font-size: 20px; font-weight: 600; letter-spacing: 0.2px; }
+      .sub { margin: 0 0 20px; color: var(--muted); font-size: 13px; }
+      .card {
+        padding: 16px 18px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--card);
+      }
+      .stage { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+      .spinner {
+        width: 14px; height: 14px; flex: none;
+        border: 2px solid var(--border);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+      .done .spinner { display: none; }
+      .failed .spinner { display: none; }
+      .failed .stage { color: var(--error); }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      #detail { margin: 10px 0 0; color: var(--muted); font-size: 12.5px; white-space: pre-wrap; word-break: break-word; }
+      #actions { display: flex; gap: 8px; margin-top: 16px; }
+      button {
+        font: inherit; padding: 6px 12px; border-radius: 6px;
+        border: 1px solid var(--border); background: var(--bg); color: var(--fg); cursor: pointer;
+      }
+      button:hover { border-color: var(--accent); color: var(--accent); }
+      footer { margin-top: 14px; color: var(--muted); font-size: 11.5px; }
+    </style>
+  </head>
+  <body>
+    <main id="root" class="running">
+      <h1>Pi Desktop</h1>
+      <p class="sub">正在启动 Pi（内嵌 pi-web 服务端与 agent）…</p>
+      <section class="card">
+        <div class="stage"><span class="spinner"></span><span id="stage-value">准备启动</span></div>
+        <p id="detail">每个启动阶段都会显示在这里；失败时会给出具体阶段与原因。</p>
+        <div id="actions">
+          <button id="action-open-log" type="button">打开日志</button>
+          <button id="action-retry" type="button">重试</button>
+          <button id="action-quit" type="button">退出</button>
+        </div>
+      </section>
+      <footer id="meta"></footer>
+    </main>
+    <script type="module" src="/src/renderer/renderer.ts"></script>
+  </body>
+</html>
