@@ -63,7 +63,7 @@
 | # | 事实 | 依据 |
 |---|---|---|
 | U1 | dsh 的流水线形态：`ci.yml`（三 OS 矩阵 + `concurrency` 取消在途）与 `release.yml`（tag `v*` → `softprops/action-gh-release` 上传 `*.exe/*.nupkg/*.deb/*.rpm/*.dmg/*.zip`，不签名不公证） | 🔶 §2.3（dsh 结论，本工程沿用形态） |
-| U2 | 本工程 CI 的额外要求：克隆 `../pi`（`Branch_v1.1.0`）与 `../pi-web`（`Branch_v0.11.1`）、`setup-node` 用 24.21.0、Linux 装 `fakeroot rpm`、跑 `pin-upstream.mjs`、跑质量门与 smoke 门禁 | ✅ §8.5 工作流表 |
+| U2 | 本工程 CI 的额外要求：克隆 `../pi` 与 `../pi-web`（⚠️ 2026-10-13 更正：上游仓库**没有** `Branch_v1.1.0` / `Branch_v0.11.1` 这类分支，必须按 **tag** `v1.1.0` / `v0.11.1` 克隆并断言 commit SHA）、`setup-node` 用 24.21.0、Linux 装 `fakeroot rpm`、**三平台都要有 `ffmpeg`**（品牌化生成 web 位图图标） | ✅ `docs/发布与更新.md` §3.1 |
 | U3 | 应用内检查更新的行为定义（查询 → 比较 → 弹窗 → `shell.openExternal`；不自动下载） | ✅ §5.7 |
 | U4 | 更新源未定：① GitHub Releases API（未认证限流）；② `pi-desktop-website` 静态 feed | ⬜ §11.3.2（人工确认） |
 | U5 | 签名/公证是否需要待人工确认 | ⬜ §11.3.3 |
@@ -84,6 +84,10 @@ jobs.build:
     - actions/checkout@v4
     - git clone --branch Branch_v1.1.0 --depth 1 <pi-url> ../pi
     - git clone --branch Branch_v0.11.1 --depth 1 <pi-web-url> ../pi-web
+    - git clone --branch v1.1.0 --depth 1 <pi-url> pi && test "$(git -C pi rev-parse HEAD)" = "<pi-sha>"
+    - git clone --branch v0.11.1 --depth 1 <pi-web-url> pi-web && test "$(git -C pi-web rev-parse HEAD)" = "<pi-web-sha>"
+    - 三平台确保 ffmpeg 可用（已装则跳过；缺失即 choco/brew/apt 安装）
+    - 打包用 `tar --format=ustar --dereference`（ustar 的 linkname 上限 100 字节，POSIX 上 npm 的 bin 符号链接会超长）
     - actions/setup-node@v4 (node-version: 24.21.0, cache: npm)
     - if linux: sudo apt-get update && sudo apt-get install -y fakeroot rpm
     - npm ci
