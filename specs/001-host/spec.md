@@ -167,7 +167,7 @@ Host 模块的职责是：**在 Electron 主进程（Node 24.21.0）内完成环
 - **约束**：上游内部入口不是公开 API —— 升级 `pi-web` 时必须复核导出形态（✅ `docs/工程规划.md` §11.1 R1；`plan.md` §3.4 的探测清单就是为此设计）。
 - **约束**：不 fork、不打补丁（§7 补丁集 0 条必需）；形态变化时走回退候选 B 而非改上游。
 - **约束**：Node 版本门禁天然满足（Electron 43.7.9 内置 Node 24.21.0 ≥ 上游 `>=22.19.0`），因此本模块**不需要** HOS 那套 Node 错位论证。
-- **⬜ 待验证（P0-1）**：`startServer` 的导出名与参数形状在 Next 16.3.8 下的精确形态；`dir` 参数是否足以解析 `.next`（是否还需要 `cwd`）。
+- **✅ 已定论（P0-1，2026-10-13 轮次 1）**：`startServer` 的导出名与参数形状 —— `startServer({dir, hostname, port, isDev, dev, allowRetry, keepAliveTimeout})` 可用（返回值是对象但**无 `close`**，退出只能强退，见 `src/main/host.ts` 的 `makeCloser`）；**`dir` 参数不足以解析 `.next`** —— Next 还用 `join(process.cwd(), path.relative(process.cwd(), dir))` 还原项目根，跨盘符时该式必拼坏（证据 `logs/20261013-0/evidence/TC13-probe-A-crossdrive-no-chdir.log`）。因此 `startHost()` 在 `startServer` 前 `process.chdir(<产物根>)`；见 `plan.md` §6.1/§6.2 与 `specs/012-branding/plan.md` §3.5、§6.5。
 - **⬜ 待验证（P0-1）**：上游是否读取 `PI_WEB_SHUTDOWN_DEADLINE_MS`；SSE 连接是否需要在 `close()` 前显式断开（当前由 upstream `instrumentation-node.ts` 在信号路径处理，壳层直接调 `close()` 的效果待实测）。
 - **⬜ 待验证**：`/api/web-auth` 作为探活端点在启用密码时是否稳定返回 2xx/4xx（而非 5xx）；若不稳定则退用 `/login`（`plan.md` §3.7）。
 

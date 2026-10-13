@@ -71,7 +71,7 @@
 
 | # | 事实 | 依据 |
 |---|---|---|
-| U1 | `pi-web` 无 `output: 'standalone'`，不可静态导出；生产必须 `cwd = 包目录`（`.next` 固定解析为 `path.join(__dirname,'..','.next')`） | ✅ §2.2 |
+| U1 | `pi-web` 无 `output: 'standalone'`，不可静态导出；生产**必须以包目录为 `cwd` 基准**（⚠️ 2026-10-13 更正：原写「`.next` 固定解析为 `path.join(__dirname,'..','.next')`」不成立 —— 实际是 Next 用 `join(process.cwd(), path.relative(process.cwd(), dir))` 还原项目根；跨盘符时该式必拼坏，故 `host.ts` 起服务前 `process.chdir(<产物根>)`，见 `specs/012-branding/plan.md` §3.5 与轮次 1） | ✅ `next/dist/server/route-modules/route-module.js`、`next/dist/server/load-manifest.external.js` |
 | U2 | `pi-web` 的原生依赖**只有** `node-pty` 1.2.0-beta.15（在 `serverExternalPackages` 中，`prebuilds/` 内含多平台目录）；**无** `better-sqlite3`（会话是 JSONL） | ✅ §2.2、§8.2 |
 | U3 | 平台有原生 SWC（`@next/swc-<platform>-<arch>`），**不需要** HOS 的 WASM 兜底；但必须每个 runner 各自构建 | ✅ §8.2（🔶 与 HOS 的差异点） |
 | U4 | `forge.config.ts` 已存在且包含 `extraResource: ['pi-dist.tar.gz', 'resources/icon.png', 'resources/tray.png', 'resources/trayTemplate.png']`、makers（Squirrel/ZIP/DMG/RPM/DEB）、Fuses 六项、`ignore` 清单 | ✅ `forge.config.ts:18-71` |

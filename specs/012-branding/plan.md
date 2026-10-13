@@ -32,7 +32,7 @@
 2. **页面 Logo 的三种编译形态**：JS chunk 用 `src:"/icons/apple-touch-icon.png"`（4 处：`server/app/login/page.js`、`static/chunks/app/login/page-*.js`、`server/app/page.js`、`static/chunks/app/page-*.js`）；预渲染 HTML 用 `src="/icons/apple-touch-icon.png"`（`server/app/login.html`）；Next 另插 `as="image" href="/icons/apple-touch-icon.png"`（preload，1 处）。
 3. **必须保留的引用**：`rel="apple-touch-icon" href=...` 元数据（多处）与 `public/sw.js` 预缓存列表 → 只替换**渲染点**，元数据与 SW 不动（PNG 本身已由物料重建）。
 4. **`favicon.ico.body`** 存在（`.next/server/app/`），内容是 PNG 字节；与 `public/icons/icon-512.png` 同尺寸来源，需一并重建，否则 favicon 仍是上游图标。
-5. **打包态就绪缺陷（P0，已修；根因已更正）**：上一轮 `logs/20261012-0/runA-stdout.log` 与本轮 `logs/20261013-0/04-packaged-run.log` 都在**默认布局**（cwd 在应用所在盘 `D:`、产物在 `<userData>` `C:`）下失败：`ENOENT … '<cwd>\C:\…\pi-dist\C:\…\pi-dist\.next\routes-manifest.json'` → 每个请求 500 → `就绪探测超时`。当时把原因归给「反斜杠绝对路径」，并用换正斜杠的同盘符探针（`exp-t1/t2c/t3b.out`）验证“通过”——**该归因是混淆的**：那三个探针的 `dir` 与 cwd 同盘符，`path.relative()` 本来就能表达相对关系，与斜杠无关。真正的根因是**跨盘符**：Next 用 `join(process.cwd(), path.relative(process.cwd(), dir))` 还原项目根（`next/dist/server/route-modules/route-module.js` → `next/dist/server/load-manifest.external.js` 的 `loadManifestFromRelativePath({projectDir, distDir, manifest})`），而 Windows 的 `path.relative()` **跨盘符只能返回绝对路径**，`join()` 会把它当相对段再拼一次。本轮用同一份产物 + 同一 Node 做了对照探针（`logs/20261013-0/evidence/TC13-probe-A-crossdrive-no-chdir.log` 复现该 ENOENT；`TC13-probe-B-crossdrive-chdir.log` 在 chdir 后第 1 次探测即 200）。⇒ 处理：**把进程工作目录切到产物根**（与上游 `next start` 的约定一致）+ fail-visible 守卫（`src/main/host.ts`）；打包态回归见 FR-012-013、`logs/20261013-0/13-packaged-run.log`。
+5. **打包态就绪缺陷（P0，已修；根因已更正）**：上一轮 `logs/20261012-0/runA-stdout.log` 与本轮 `logs/20261013-0/04-packaged-run.log` 都在**默认布局**（cwd 在应用所在盘 `D:`、产物在 `<userData>` `C:`）下失败：`ENOENT … '<cwd>\C:\…\pi-dist\C:\…\pi-dist\.next\routes-manifest.json'` → 每个请求 500 → `就绪探测超时`。当时把原因归给「反斜杠绝对路径」，并用换正斜杠的同盘符探针（`exp-t1/t2c/t3b.out`）验证“通过”——**该归因是混淆的**：那三个探针的 `dir` 与 cwd 同盘符，`path.relative()` 本来就能表达相对关系，与斜杠无关。真正的根因是**跨盘符**：Next 用 `join(process.cwd(), path.relative(process.cwd(), dir))` 还原项目根（`next/dist/server/route-modules/route-module.js` → `next/dist/server/load-manifest.external.js` 的 `loadManifestFromRelativePath({projectDir, distDir, manifest})`），而 Windows 的 `path.relative()` **跨盘符只能返回绝对路径**，`join()` 会把它当相对段再拼一次。本轮用同一份产物 + 同一 Node 做了对照探针（`logs/20261013-0/evidence/TC13-probe-A-crossdrive-no-chdir.log` 复现该 ENOENT；`TC13-probe-B-crossdrive-chdir.log` 在 chdir 后第 1 次探测即 200）。⇒ 处理：**把进程工作目录切到产物根**（与上游 `next start` 的约定一致；chdir 让该相对关系退化为 `''`，同类缺陷**构造性消除**），并加一个**只校验「chdir 真的生效」**的守卫（`src/main/host.ts`）——⚠️ **不写**「跨盘符就报错」那类断言：chdir 之后它永不成立（等于死代码）；打包态回归见 FR-012-013、`logs/20261013-0/13-packaged-run.log`。
 
 ## 4. 数据模型
 
@@ -107,5 +107,5 @@ CLI：`node scripts/brand-assets.mjs [--assets <dir>]`（`resources/` 恒做；`
 | FR-012-009 | `loadMaterial()` 的镜像逻辑 |
 | FR-012-010 / 011 | `src/main/host.ts:74,77`（已存在，本轮验证） |
 | FR-012-012 | `package.json` / `package-lock.json` / 文档 |
-| FR-012-013 | `src/main/host.ts` 的「chdir 到产物根 + 跨盘符 fail-visible 守卫」 |
+| FR-012-013 | `src/main/host.ts` 的「chdir 到产物根 + chdir 生效守卫」 |
 | FR-012-014 | `logs/20261013-0/` 端到端测试证据 |

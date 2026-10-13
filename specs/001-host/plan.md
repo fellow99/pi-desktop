@@ -119,8 +119,9 @@ spawn(process.execPath, [nextBin, 'start', '-H', '127.0.0.1', '-p', String(port)
 idle
   → env              （环境装配完成；PI_WEB_PASSWORD 已生成）
   → rotated          （预览密钥轮换成功）
+  → cwd-based        （进程工作目录已切到产物根；Next 的项目根基准 — 2026-10-13 轮次 1 补，见 012 plan §3.5）
   → listening        （startServer 返回，端口已绑定；断言 hostname=127.0.0.1）
-  → ready            （HTTP 轮询命中；url 可交付）
+  → ready            （HTTP 轮询命中 status=200；url 可交付）
   → closing          （close() 已调用，等待 HTTP 服务器结束）
   → closed           （deadline 内结束）或被 005 强退（deadline 超时）
 
@@ -165,13 +166,13 @@ idle
 
 ### 6.1 架构模式
 
-**单文件时序编排 + 一个纯函数**：`src/main/host.ts` 导出 `startHost()`，内部按 `env → rotate → listen → ready` 四阶段线性推进；环境装配抽成 `buildHostEnv()`（无副作用）以便单测。不拆更多文件：本模块是一次性启动编排，拆分只会引入跨文件隐式耦合（🔶 沿用 HOS 的单文件编排口径）。
+**单文件时序编排 + 一个纯函数**：`src/main/host.ts` 导出 `startHost()`，内部按 `env → rotate → chdir(产物根) → listen → ready` 五阶段线性推进（`chdir` 阶段见 §6.5 与 012 plan §3.5：跨盘符时必须先切 cwd，否则 Next 的 `.next` 清单路径必拼坏）；环境装配抽成 `assembleEnv()`（有副作用：写 env + 物化模板）与 `resolveAgentDir()` 便于对照。不拆更多文件：本模块是一次性启动编排，拆分只会引入跨文件隐式耦合（🔶 沿用 HOS 的单文件编排口径）。
 
 ### 6.2 关键算法
 
 - **端口探测**：`net.createServer().listen(0, '127.0.0.1')` → 读 `address().port` → `close()` → 返回该端口。存在「探测与真正绑定之间被抢占」的窗口，因此 `startServer` 报 `EADDRINUSE` 时 MUST 重试（上限 3 次）。
 - **导出探测**：`require()` 候选路径（`try/catch` 每项独立）→ 断言 `typeof mod[name] === 'function'`；失败项只 `logWarn`，不抛；全部失败才抛。
-- **就绪轮询**：`while (Date.now() < deadline)` → `fetch(probeUrl, { redirect: 'manual' })` → `status < 500` 即就绪；间隔 `READY_INTERVAL_MS`（400 ms）；每 N 次打一行进度日志。
+- **就绪轮询**：`while (Date.now() < deadline)` → `fetch(probeUrl)` → **`status === 200` 即就绪**（⚠️ 2026-10-13 更正：原写 `status < 500`；代码一直要求 200，且 `500` 正是本轮跨盘符缺陷的表现——放宽成 `<500` 会把「就绪但功能坏」当成功）；间隔 `READY_INTERVAL_MS`（400 ms）；每 N 次打一行进度日志。
 - **幂等关闭**：`let closing: Promise<void> | null = null; closing ??= doClose()`。
 
 ### 6.3 错误处理
@@ -202,13 +203,13 @@ idle
 
 | 文件 | 用途 | 状态（2026-10-12 复核） |
 |---|---|---|
-| `src/main/host.ts` | 环境装配 + 导出探测 + 进程内启动 + 就绪轮询 + 幂等关闭 | ✅ 已存在（518 行；实际导出 `assembleEnv` / `resolvePassword` / `rotatePreviewSecrets` / `waitForReady` / `installAuthInjection` / `startHost` / `closeWithDeadline`） |
+| `src/main/host.ts` | 环境装配 + 导出探测 + 「chdir 到产物根」+ 进程内启动 + 就绪轮询 + 幂等关闭 | ✅ 已存在（558 行；实际导出 `assembleEnv` / `resolvePassword` / `rotatePreviewSecrets` / `waitForReady` / `installAuthInjection` / `startHost` / `closeWithDeadline`） |
 | `src/main/constants.ts` | 端口/就绪/关闭相关常量（`READY_*`、`SHUTDOWN_DEADLINE_MS`、`PI_WEB_SESSION_*`） | ✅ 已存在（56 行） |
 | `src/main/logger.ts` | `[pi-desktop]` 前缀日志、阶段文本、错误描述 | ✅ 已存在（86 行） |
 | `src/main/artifact.ts`（009） | `ensureArtifact()` 提供 `piDistRoot` / `nextEntry` | ✅ 已存在（163 行） |
 | `src/main/settings.ts`（008） | `loadSettings()` / `resolveAgentDir()` | ✅ 已存在（110 行） |
 | `src/main/index.ts`（007） | 调用 `startHost()` 并按序编排 | ✅ 已存在（327 行） |
-| `src/main/windows.ts`（002） | 消费宿主句柄，负责凭据注入与加载 | ✅ 已存在（201 行） |
+| `src/main/windows.ts`（002） | 消费宿主句柄，负责凭据注入与加载 | ✅ 已存在（227 行） |
 
 > §5「接口契约」的导出名是**设计期建议**，以源文件为准（实现侧采用 `assembleEnv` / `startHost` 等命名，语义一致）。本模块**不新增**其它文件；`src/main/tar-extract.ts`（✅ 已存在，218 行）属 009。
 
