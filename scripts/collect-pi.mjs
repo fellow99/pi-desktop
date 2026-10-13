@@ -235,7 +235,13 @@ async function tarball(args, staging) {
   const tarBin = process.platform === 'win32'
     ? join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'tar.exe')
     : 'tar';
-  const tarArgs = ['-czf', tarPath, '--format=ustar', '-C', dirname(staging), STAGING_NAME];
+  // `--dereference`（GNU tar 与 bsdtar 都支持；`-L` 在 GNU tar 是别的含义，故用长选项）：
+  //   ustar 的 linkname 字段上限 100 字节，而 npm 在 POSIX 上会为 CLI 生成**符号链接**（`node_modules/**/bin/*`），
+  //   其目标字符串在深层嵌套下会超长 → GNU tar 报 `link name is too long; not dumped` 并以退出码 2 失败
+  //   （2026-10-13 CI 的 ubuntu 作业实测；Windows/macOS 的 bsdtar 不报错）。
+  //   解引用后存为**普通文件**，内容与权限位不变，运行期不需要这些 CLI 影子文件，因此语义无损；
+  //   `pi-web` 的 lockfile 无 `link:`/`file:` 依赖 ⇒ 树里不存在目录级符号链接，解引用不会复制整棵子树。
+  const tarArgs = ['-czf', tarPath, '--format=ustar', '--dereference', '-C', dirname(staging), STAGING_NAME];
   log(`打包：${tarBin} ${tarArgs.join(' ')}`);
   const result = spawnSync(tarBin, tarArgs, { stdio: 'inherit' });
   if (result.error) fail('调用 tar 失败（Windows 需 System32\\tar.exe）', result.error);
