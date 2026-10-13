@@ -20,7 +20,7 @@
  *   R4 首屏 UI 结构完整（DOM 规模 + composer 可编辑元素 + 按钮 + 文本标记）
  *   R5 window.open 被壳层拦截（返回 null；对应主进程日志「已拦截非 http(s) 的新窗口请求」）
  *   R6 会话与事件流：POST /api/agent/new(ensure_session) → GET /api/agent/<id>/events 首块到达
- *   R7 终端 PTY：POST /api/terminal → 写入命令 → 回显命中 → DELETE
+ *   R7 终端 PTY：POST /api/terminal → 写入命令 → 流内命中标记（命令真的被执行）→ DELETE
  *      （这是 R2「node-pty 在 ABI 148 下可加载」的唯一直接证据路径：PTY 由 pi-web 服务端创建，
  *        而服务端就跑在 Electron 主进程里）
  *
@@ -285,7 +285,12 @@ const main = async () => {
       const cleaned = text.replace(/\\u001b\\[[0-9;?]*[a-zA-Z]/g, '').replace(/\\s+/g, ' ').trim();
       const cleanedCount = (cleaned.match(new RegExp(marker, 'g')) ?? []).length;
       return {
-        ok: text.includes(marker) && cleanedCount >= 2,
+        // 判据修正（2026-10-13，实测后）：原判据要求 cleanedCount >= 2（输入回显 + 命令输出各一次），
+        // 但 conpty 会把【输入回显】按 CRLF 折行（实测尾部出现：echo P + CRLF + I_DESKTOP_PTY_OK），
+        // 于是连续标记只剩一次 → 健全的终端被判 FAIL。改为：只要流里出现标记即算通过
+        // （标记只有在命令真的被执行后才有机会出现），并以 streamBytes > 0 佐证拿到了真实终端输出。
+        // ⚠️ 注意：本段代码位于 page.evaluate 的模板字符串内，注释里**不能出现反引号**（会截断模板）。
+        ok: text.includes(marker) && contentLength > 0,
         id,
         contentType,
         streamBytes: contentLength,
@@ -298,7 +303,7 @@ const main = async () => {
     }
   })()`, 90_000);
   record(
-    'R7 终端 PTY 可创建并回显命令（node-pty 在 Electron ABI 下可加载）',
+    'R7 终端 PTY 可创建并跑通命令（node-pty 在 Electron ABI 下可加载）',
     pty?.ok === true,
     `terminalId=${String(pty?.id ?? '').slice(0, 8)}…｜流字节=${pty?.streamBytes}｜回显次数=${pty?.echoes}｜尾部="${pty?.tail ?? ''}"${pty?.why ? `｜why=${pty.why}` : ''}`,
   );

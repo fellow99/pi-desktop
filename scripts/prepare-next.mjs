@@ -105,6 +105,40 @@ function verifyArtifacts(source) {
   return buildId;
 }
 
+/**
+ * 原生依赖完整性校验（FR-010-027，fail-visible）。
+ *
+ * 为什么必须有：`node-pty` 的 install 脚本是 `node scripts/prebuild.js || node-gyp rebuild`，
+ * 而它只看 `prebuilds/<platform>-<arch>/` **目录是否存在** —— 目录存在但没有 `.node`（本机 2026-10-13
+ * 实测到的形态）时它会 `exit 0`，于是 npm 跳过 `node-gyp rebuild`，运行期才在终端上炸：
+ * `Failed to load native module: conpty.node … Cannot find module './prebuilds/win32-x64/conpty.node'`（HTTP 500）。
+ * 构建期硬失败，把它变成一条能照做的报错。
+ */
+function verifyNativeDeps(source) {
+  const triple = `${process.platform}-${process.arch}`;
+  const pkg = 'node-pty';
+  const pkgRoot = join(source, 'node_modules', pkg);
+  if (!existsSync(pkgRoot)) {
+    throw new Error(`原生依赖缺失：${pkgRoot} 不存在（先跑 npm ci）`);
+  }
+  const releaseDir = join(pkgRoot, 'build', 'Release');
+  const releaseNodes = existsSync(releaseDir) ? readdirSync(releaseDir).filter((f) => f.endsWith('.node')) : [];
+  const prebuildDir = join(pkgRoot, 'prebuilds', triple);
+  const prebuildNodes = existsSync(prebuildDir) ? readdirSync(prebuildDir).filter((f) => f.endsWith('.node')) : [];
+  if (releaseNodes.length === 0 && prebuildNodes.length === 0) {
+    throw new Error(
+      `原生依赖不完整：${pkg} 在 ${triple} 上既没有 build/Release/*.node，也没有 prebuilds/${triple}/*.node`
+        + '（上游的 prebuild.js 只看目录是否存在，空目录会被误判为「已预构建」而跳过 node-gyp）。'
+        + `修法：删除 ${prebuildDir} 后重跑 \`npm ci\`（上游发布包内含本平台的预构建）；`
+        + `或 \`npm_config_build_from_source=true npm rebuild ${pkg}\` 从源码重建（需 C++ 工具链）。`,
+    );
+  }
+  const where = releaseNodes.length > 0
+    ? `build/Release（${releaseNodes.join(', ')}）`
+    : `prebuilds/${triple}（${prebuildNodes.join(', ')}）`;
+  console.log(`[pi-desktop][prepare-next] 原生依赖校验通过：${pkg} ${triple} → ${where}`);
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const source = args.source;
@@ -126,6 +160,9 @@ function main() {
   } else {
     console.log('[pi-desktop][prepare-next] --no-install：跳过依赖安装');
   }
+
+  // 原生依赖完整性：放在 npm ci 之后、next build 之前 —— 坏安装立刻失败，不浪费一次构建（FR-010-027）。
+  verifyNativeDeps(source);
 
   if (args.build) {
     run('node', [join('node_modules', 'next', 'dist', 'bin', 'next'), 'build', '--webpack'], { cwd: source });

@@ -107,6 +107,8 @@
 - FR-010-025：系统 MUST 保持 `docs/工程规划.md` §6.2 的目录结构（`scripts/`、`config/`、`resources/`、`src/**`、`forge.config.ts`、`vite.{main,preload,renderer}.config.ts`）。
 - FR-010-026：系统 MUST NOT 依赖 `../pi-desktop-hos` 参与构建（它只是只读参考；`tar-extract` 是**移植**而非引用）。
 
+- FR-010-027：`prepare-next` MUST 在 `npm ci` 之后、`next build` 之前校验**原生依赖完整性**：对 `node-pty`，`build/Release/*.node` 与 `prebuilds/<platform>-<arch>/*.node` **至少一处存在真实二进制**；都缺失 ⇒ **构建失败**并给出可照做的修法。（动机：上游 `scripts/prebuild.js` 只判断 `prebuilds/<triple>/` **目录是否存在**，空目录会被误判为「已预构建」而跳过 `node-gyp`，症状要到运行期终端 500 才暴露 —— 本工程 2026-10-13 实测踩到。）
+
 ## 4. 关键实体
 
 | 实体 | 说明 | 关键属性 |
