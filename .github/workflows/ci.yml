@@ -17,14 +17,14 @@ concurrency:
 env:
   # 与运行时对齐：Electron 43.7.9 内置 Node 24.21.0
   NODE_VERSION: '24.21.0'
-  # 上游基线：上游仓库**没有** `Branch_v1.1.0` / `Branch_v0.11.1` 这类分支，等同物是 **tag**；
+  # 上游基线：上游仓库**没有** `Branch_v1.2.0` / `Branch_v0.12.1` 这类分支，等同物是 **tag**；
   # 除按 tag 克隆外还断言 commit SHA（与 upstream.lock.json 一致）——上游重打 tag 会立刻失败（fail-visible）。
   PI_REPO: https://github.com/earendil-works/pi.git
-  PI_REF: v1.1.0
-  PI_SHA: abe508e1b89912adde45528136c3221eb69acdd7
+  PI_REF: v1.2.0
+  PI_SHA: 06a466935536f8c9bcacb2d5efc0fc021be1bdff
   PI_WEB_REPO: https://github.com/agegr/pi-web.git
-  PI_WEB_REF: v0.11.1
-  PI_WEB_SHA: e78372193bcbf7a1986072704753550008554ead
+  PI_WEB_REF: v0.12.1
+  PI_WEB_SHA: f83b1a502f8e434555a7153fe08e1c135dd65ca9
 
 jobs:
   build:

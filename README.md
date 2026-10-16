@@ -12,8 +12,8 @@
 > instance, window state, artifact bootstrap, update guidance) while the UI is **100% upstream** —
 > no frontend fork.
 
-**Version**: `0.11.1` (tag `v0.11.1`; **Phase 0 fully measured**, see [docs/构建验证记录.md](docs/构建验证记录.md))
-· **Upstream baseline**: `pi` **v1.1.0** (`Branch_v1.1.0`) + `pi-web` **v0.11.1** (`Branch_v0.11.1`)
+**Version**: `0.12.1` (tag `v0.12.1`; see [docs/构建验证记录.md](docs/构建验证记录.md))
+· **Upstream baseline**: `pi` **v1.2.0** (`Branch_v1.2.0`) + `pi-web` **v0.12.1** (`Branch_v0.12.1`)
 · **Runtime**: Electron **43.7.9** (Node **24.21.0** / Chromium **150.0.7871.250** / ABI **148**)
 · **App name / executable / app ID**: `Pi Desktop` / `pi-desktop` / `com.fellow99.pi.desktop`
 
@@ -102,7 +102,7 @@ and `resources/`), leaving all three upstream repos untouched:
 | Web bitmap icons | `public/icons/{icon-512,icon-192,apple-touch-icon}.png` plus the `favicon.ico` route body are generated from the assets and verified by **reading back the IHDR** (512² rgb24 opaque; the rest carry alpha) |
 | App icons | `resources/{icon.png,icon.ico,icon.icns,tray.png,trayTemplate.png}` are **byte-for-byte** copies of the assets; the window icon explicitly uses them |
 | Asset source | the **parent project's `<workspace>/assets/`** (single source of truth; missing / wrong size / wrong transparency ⇒ **build failure**), mirrored into `resources/brand/` for CI |
-| Version check | the runtime sets `PI_WEB_SKIP_VERSION_CHECK=1`: `/api/app-update` returns `updateAvailable=false` and `releaseUrl=""` while **still reporting `currentVersion`** (measured `0.11.1`); the shell's own "check for updates" is the only update path |
+| Version check | the runtime sets `PI_WEB_SKIP_VERSION_CHECK=1`: `/api/app-update` returns `updateAvailable=false` and `releaseUrl=""` while **still reporting `currentVersion`**; measured `0.11.1` in round 2 and `0.12.1` in the 0.12.1 round; the shell's own "check for updates" is the only update path |
 | Implementation | `scripts/brand-assets.mjs` (also runnable as `npm run brand`) wired into `scripts/collect-pi.mjs`; three layers of post-assertions plus a whole-tree final check (`Pi Web` = 0 occurrences) |
 
 ## Capabilities
@@ -141,7 +141,7 @@ The full three-platform matrix, evidence column and degradation matrix live in
 | macOS | `.dmg` + `zip` | requires **right-click → Open**, or `xattr -dr com.apple.quarantine "/Applications/Pi Desktop.app"` | ⬜ never run on macOS |
 | Linux | `.deb` + `.rpm` + `zip` | direct install (no mandatory signing gate) | ⬜ never run on Linux |
 
-**Measured Windows numbers (round 2)**: `Pi Desktop-0.11.1 Setup.exe` = **351,521,280 B**; installed to
+**Measured Windows numbers (round 2, version `0.11.1`)**: `Pi Desktop-0.11.1 Setup.exe` = **351,521,280 B**; installed to
 `%LOCALAPPDATA%\pi_desktop\app-0.11.1`; launching the **installed copy** reaches the first screen
 (re-running `probe-renderer` against it still gives 7 PASS / 0 FAIL); after uninstall the registry entry
 is gone and **0 orphan processes** remain.
@@ -163,8 +163,8 @@ builds the three-OS matrix and publishes the Release assets.
 | Build | TypeScript | `^5.6.0` (strict, `tsc --noEmit`) | `@types/node` `^24.3.0` |
 | Build | makers | 5 Forge makers | Squirrel(win) / ZIP(win,mac,linux) / DMG(mac) / RPM(linux) / DEB(linux) |
 | CI | Node | **24.21.0** | same version as the runtime (the gate starts the server with the same Node) |
-| Upstream (shipped inside `pi-dist`) | `pi-web` | **0.11.1** (Next **16.3.8** App Router) | SPA + `/api/*` (~90 routes) + SSE |
-| Upstream (shipped inside `pi-dist`) | `pi` | **1.1.0** (`@earendil-works/pi-coding-agent`, …) | in-process SDK; `packages/*` locked at 1.1.0 |
+| Upstream (shipped inside `pi-dist`) | `pi-web` | **0.12.1** (Next **16.3.8** App Router) | SPA + `/api/*` (~90 routes) + SSE |
+| Upstream (shipped inside `pi-dist`) | `pi` | **1.2.0** (`@earendil-works/pi-coding-agent`, …) | in-process SDK; `packages/*` locked at 1.2.0 |
 | Upstream native module | `node-pty` | 1.2.0-beta.15 | `serverExternalPackages`; **measured loadable under ABI 148** (round 2) with a build-time completeness gate (`FR-010-027`) |
 
 The shell's only runtime dependency is `electron-squirrel-startup`; `next` / `@earendil-works/*` /
@@ -177,7 +177,7 @@ The shell's only runtime dependency is `electron-squirrel-startup`; `next` / `@e
 | Item | Requirement |
 |---|---|
 | Node | **24.21.0** (official binary; matches the version bundled with Electron 43.7.9). The upstream gate is `>=22.19.0`, but the gate script must match the runtime to represent real behaviour |
-| Sibling projects | `../pi` (submodule, `Branch_v1.1.0`), `../pi-web` (submodule, `Branch_v0.11.1`) — this project uses **sibling source references**, not npm dependencies |
+| Sibling projects | `../pi` (submodule, `Branch_v1.2.0`), `../pi-web` (submodule, `Branch_v0.12.1`) — this project uses **sibling source references**, not npm dependencies |
 | Brand assets | `../assets/` (parent project: `logo.svg`, `logo.png`, `logo-1024-with-bg.png`, `logo-200-with-bg.png`, `logo.ico`, `logo.icns`) — missing assets fail the build (override with `--assets` or `PI_ASSETS_DIR`) |
 | Package manager | `npm` (`npm ci` against each lockfile) |
 | git | clone submodules, `pin:upstream` records SHAs, `git/worktree` capability checks |
@@ -187,7 +187,7 @@ The shell's only runtime dependency is `electron-squirrel-startup`; `next` / `@e
 > Why `pi` / `pi-web` must be sibling sources rather than npm dependencies: `pi-web`'s `.next` has to be
 > built **reproducibly on this machine** (we control `serverExternalPackages`, prune native modules per
 > target platform, and rotate preview secrets before packaging), and `pi-web` pins `pi` to **exactly
-> 1.1.0**, so a source reference keeps both sides in lockstep (plan §2.5).
+> 1.2.0**, so a source reference keeps both sides in lockstep (plan §2.5).
 
 ### Four-stage build pipeline
 
@@ -291,8 +291,8 @@ build scripts resolve `../sibling` paths):
 
 ```
 pi-workspace/
-├── pi/                          # [submodule] upstream host + SDK, pinned to Branch_v1.1.0
-├── pi-web/                      # [submodule] upstream UI + server, pinned to Branch_v0.11.1
+├── pi/                          # [submodule] upstream host + SDK, pinned to Branch_v1.2.0
+├── pi-web/                      # [submodule] upstream UI + server, pinned to Branch_v0.12.1
 ├── assets/                      # brand assets (parent project; consumed here as ../assets)
 ├── pi-desktop/                  # [submodule] ← this project (Electron desktop shell)
 │      ├─ ../pi      (host + SDK)    ← build time: npm install (produces the @earendil-works/* tree)

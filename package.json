@@ -1,7 +1,7 @@
 {
   "name": "pi-desktop",
   "productName": "Pi Desktop",
-  "version": "0.11.1",
+  "version": "0.12.1",
   "description": "Pi Desktop — Electron 桌面壳：在主进程内嵌 pi-web 的 Next 服务器（含 pi agent），渲染层同源加载 Pi Web UI",
   "main": ".vite/build/main.js",
   "author": "fellow99",

@@ -25,14 +25,14 @@ concurrency:
 
 env:
   NODE_VERSION: '24.21.0'
-  # 上游基线：上游仓库**没有** `Branch_v1.1.0` / `Branch_v0.11.1` 这类分支，等同物是 **tag**；
+  # 上游基线：上游仓库**没有** `Branch_v1.2.0` / `Branch_v0.12.1` 这类分支，等同物是 **tag**；
   # 除按 tag 克隆外还断言 commit SHA（与 upstream.lock.json 一致）——上游重打 tag 会立刻失败（fail-visible）。
   PI_REPO: https://github.com/earendil-works/pi.git
-  PI_REF: v1.1.0
-  PI_SHA: abe508e1b89912adde45528136c3221eb69acdd7
+  PI_REF: v1.2.0
+  PI_SHA: 06a466935536f8c9bcacb2d5efc0fc021be1bdff
   PI_WEB_REPO: https://github.com/agegr/pi-web.git
-  PI_WEB_REF: v0.11.1
-  PI_WEB_SHA: e78372193bcbf7a1986072704753550008554ead
+  PI_WEB_REF: v0.12.1
+  PI_WEB_SHA: f83b1a502f8e434555a7153fe08e1c135dd65ca9
 
 jobs:
   build:
@@ -57,7 +57,7 @@ jobs:
       # 加固点（评审发现）：断言必须与 `tag_name` **用同一个表达式**推导 ——
       #   否则「在 tag ref 上 dispatch 并传一个不同的 version」会绕过校验（断言看 ref，发布看 input）。
       # 输入经 env 注入，不直接拼进脚本（避免引号注入改变控制流）。
-      # 允许 workflow_dispatch 传裸版本号（`0.11.1`）——发布 tag 与之一致（无 v 前缀），
+      # 允许 workflow_dispatch 传裸版本号（`0.12.1`）——发布 tag 与之一致（无 v 前缀），
       #   这是本地演练里登记过的有意宽容（见 docs/发布与更新.md §3.4）；tag 推送路径只由
       #   `on.push.tags: ['v*']` 触发，恒为 `v<version>` 形态。
       - name: Assert tag/version consistency（tag ↔ package.json.version）
