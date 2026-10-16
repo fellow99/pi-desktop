@@ -2,8 +2,8 @@
 
 **项目名称：** pi-desktop
 **产品名：** Pi Desktop
-**技术栈：** Electron **43.7.9**（Node **24.21.0** / Chromium **150.0.7871.250** / ABI **148**）+ Electron Forge **^7.11.2**（plugin-vite + plugin-fuses）+ Vite **^7.3.6** + TypeScript **^5.6**；封装的宿主是 `pi` **v1.1.0** + `pi-web` **v0.11.1**（Next.js **16.3.8**）
-**上游基线：** `pi` tag **v1.1.0**（`Branch_v1.1.0`）· `pi-web` tag **v0.11.1**（`Branch_v0.11.1`）
+**技术栈：** Electron **43.7.9**（Node **24.21.0** / Chromium **150.0.7871.250** / ABI **148**）+ Electron Forge **^7.11.2**（plugin-vite + plugin-fuses）+ Vite **^7.3.6** + TypeScript **^5.6**；封装的宿主是 `pi` **v1.2.0** + `pi-web` **v0.12.1**（Next.js **16.3.8**）
+**上游基线：** `pi` tag **v1.2.0**（`Branch_v1.2.0`）· `pi-web` tag **v0.12.1**（`Branch_v0.12.1`）
 **文档生成时间：** 2026-10-12
 **最后更新：** 2026-10-12
 
@@ -83,6 +83,7 @@
 | 编号 | 模块名 | 英文名 | 职责（一行） | 规格状态 |
 |---|---|---|---|---|
 | 012 | 品牌化 | `branding` | 清掉上游品牌：`pi-dist` 副本的文案 / 页面 Logo / web 位图图标 / favicon，以及本工程 `resources/*` 应用图标；运行时关掉上游版本检测但**保留当前版本显示** | ✅ 已生成（[spec.md](./012-branding/spec.md) / [plan.md](./012-branding/plan.md) / [test-cases.md](./012-branding/test-cases.md)，含轮次 1 执行结果） |
+| 101 | 版本更新：0.12.1 | `version` | 上游基线升级到 `pi` v1.2.0 / `pi-web` v0.12.1；清中间产物后重跑流水线；版本号升到 `0.12.1`；更新 CI/Release 工作流的上游钉住值；提交 + tag `v0.12.1` | ✅ 已生成（[spec.md](./101-version-0.12.1/spec.md) / [plan.md](./101-version-0.12.1/plan.md) / [tasks.md](./101-version-0.12.1/tasks.md) / [test-cases.md](./101-version-0.12.1/test-cases.md)） |
 
 > 说明：`001`–`011` 与 `201` 的「规格状态」列写于早期快照；**截至 2026-10-13，`001`–`012` 的 `spec.md`/`plan.md` 均已存在（成对）**，`201` 仍未生成（是否要做尚未决策）。以 [SPECS_CHECKLIST.md](./SPECS_CHECKLIST.md) §2 与各目录实际文件为准。
 ### 扩展模块（201+）
@@ -115,7 +116,7 @@
 1. **统一文档头**：
    ```markdown
    > **Module:** <name> ｜ **Status:** Proposed ｜ **Last Updated:** YYYY-MM-DD
-   > **上游基线:** pi v1.1.0（Branch_v1.1.0）· pi-web v0.11.1（Branch_v0.11.1）
+   > **上游基线:** pi v1.2.0（Branch_v1.2.0）· pi-web v0.12.1（Branch_v0.12.1）
    ```
 2. **状态流转**：`Proposed → Accepted → Implementing → Implemented → Superseded`。
 3. **不留占位小节**：未定事项写 `⬜` + **验证方式** + **决策时限**，不写 TBD、不留空标题。
