@@ -299,7 +299,7 @@ pi-workspace/
 │      └─ ../pi-web  (UI + server)   ← build time: npm ci + next build → assemble pi-dist
 ├── pi-desktop-hos/              # [submodule] HarmonyOS port (separate project; we only reuse its findings and 2 portable modules)
 ├── pi-desktop-website/          # [submodule] website / download page (candidate data source for the update check)
-├── harmonypc-electron/          # [submodule] Electron-on-HarmonyOS runtime (not used here)
+├── harmonypc-electron/          # [submodule] Electron-on-HarmonyOS runtime (used by the Electron on HarmonyOS Edition only)
 └── harmonypc-electron-versions/ # (plain directory) HarmonyOS runtime archives + Node header guides (not used here)
 ```
 

@@ -146,7 +146,7 @@ CLI / RPC / JSON / SDK 四种集成入口。`Pi Web` 是它的本地浏览器界
 | 层 | 组件 | 版本 | 说明 |
 |---|---|---|---|
 | 运行时 | Electron | **43.7.9**（精确钉住，不用 `^`） | Node **24.21.0** / Chromium **150.0.7871.250** / ABI **148** |
-| 运行时 | Node（Electron 内置） | 24.21.0 | 满足上游 `engines.node >= 22.19.0`，**无需** 鸿蒙版那套 Node 错位论证 |
+| 运行时 | Node（Electron 内置） | 24.21.0 | 满足上游 `engines.node >= 22.19.0`，**无需** Electron on HarmonyOS 版那套 Node 错位论证 |
 | 构建 | Electron Forge | `^7.11.2` | `@electron-forge/plugin-vite` + `@electron/fuses` `^1.8.0` |
 | 构建 | Vite | `^7.3.6`（`vite.{main,preload,renderer}.config.ts`） | 主进程入口 `src/main/index.ts` → `.vite/build/main.js` |
 | 构建 | TypeScript | `^5.6.0`（strict，`tsc --noEmit`） | `@types/node` `^24.3.0` |
@@ -279,7 +279,7 @@ pi-workspace/
 ├── pi-desktop/                  # [submodule] ← 本工程（Electron 桌面壳）
 │      ├─ ../pi      （宿主 + SDK）  ← 构建期：npm install（产出 @earendil-works/* 依赖树）
 │      └─ ../pi-web  （UI + 服务端） ← 构建期：npm ci + next build → 组装 pi-dist
-├── pi-desktop-hos/              # [submodule] 鸿蒙版（独立工程；本工程只复用结论与 2 个可移植模块）
+├── pi-desktop-hos/              # [submodule] Pi Desktop · Electron on HarmonyOS 版（独立工程；本工程只复用结论与 2 个可移植模块）
 ├── pi-desktop-website/          # [submodule] 官网/下载页（更新检查的候选数据源）
 ├── harmonypc-electron/          # [submodule] Electron-on-鸿蒙 运行时（本工程不使用）
 └── harmonypc-electron-versions/ # （普通目录）鸿蒙运行时归档与 Node 头文件指导（本工程不使用）
@@ -345,7 +345,7 @@ pi-desktop/
 | 文档 | 内容 |
 |---|---|
 | [docs/工程规划.md](docs/工程规划.md) | **工程规划**：架构、结构、流水线、能力与降级、分阶段计划、风险（source of truth） |
-| [docs/桌面能力清单.md](docs/桌面能力清单.md) | 三平台 × 能力矩阵、降级矩阵、证据标注、与鸿蒙版的能力差异 |
+| [docs/桌面能力清单.md](docs/桌面能力清单.md) | 三平台 × 能力矩阵、降级矩阵、证据标注、与 Electron on HarmonyOS 版的能力差异 |
 | [docs/构建验证记录.md](docs/构建验证记录.md) | 每轮构建/实机验证的台账 + Phase 0 探针（P0-0…P0-6）实测判定与证据路径 |
 | [docs/发布与更新.md](docs/发布与更新.md) | 版本策略、CI/Release 工作流、三平台产物、未签名安装指引、卸载残留、更新行为与升级语义 |
 | [specs/](specs/) | 模块规格（`NNN-name/{spec.md,plan.md}`）与项目级文档（`README` / `constitution` / `ARCHITECTURE` / `TECH` / `STRUCTURE` / `overall-{spec,plan}`） |
