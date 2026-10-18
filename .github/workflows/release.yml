@@ -60,6 +60,10 @@ jobs:
       # 允许 workflow_dispatch 传裸版本号（`0.12.1`）——发布 tag 与之一致（无 v 前缀），
       #   这是本地演练里登记过的有意宽容（见 docs/发布与更新.md §3.4）；tag 推送路径只由
       #   `on.push.tags: ['v*']` 触发，恒为 `v<version>` 形态。
+      # bash 3.2 兼容（macOS 自带 /bin/bash；v0.12.1 首发踩坑）：变量与中文全角标点相邻时，
+      #   一律用 `${var}` 大括号定界。bash 3.2 在 C locale 下会把紧邻的 UTF-8 首字节
+      #   （如全角括号 0xEF…）吞进无括号变量名，配合 `set -u` 报 `got�: unbound variable`。
+      #   Ubuntu（bash 5.x）/ Windows（MSYS2 bash 5.2）无此问题，故仅 macos-latest 失败。
       - name: Assert tag/version consistency（tag ↔ package.json.version）
         shell: bash
         working-directory: pi-desktop
@@ -76,29 +80,29 @@ jobs:
             got="${GITHUB_REF_NAME}"
             src="${GITHUB_REF_TYPE}"
             if [ "${GITHUB_REF_TYPE}" != "tag" ]; then
-              echo "::error::workflow_dispatch 必须显式提供 version（应为 $want）——留空会让 Release 的 tag 退化为分支名 ${GITHUB_REF_NAME}"
+              echo "::error::workflow_dispatch 必须显式提供 version（应为 ${want}）——留空会让 Release 的 tag 退化为分支名 ${GITHUB_REF_NAME}"
               exit 1
             fi
           fi
           case "$got" in
-            "$want"|"$pkg") echo "版本一致性通过：$src = $got（发布 tag 同此值）｜package.json = $pkg" ;;
-            *) echo "::error::版本不一致：$src = $got，package.json = $pkg（应为 $want）"; exit 1 ;;
+            "${want}"|"${pkg}") echo "版本一致性通过：${src} = ${got}（发布 tag 同此值）｜package.json = ${pkg}" ;;
+            *) echo "::error::版本不一致：${src} = ${got}，package.json = ${pkg}（应为 ${want}）"; exit 1 ;;
           esac
       - name: Clone sibling pi（pinned tag + SHA 断言）
         shell: bash
         run: |
           git clone --depth 1 --branch "$PI_REF" "$PI_REPO" pi
           actual=$(git -C pi rev-parse HEAD)
-          echo "pi @ $actual（$PI_REF）"
-          test "$actual" = "$PI_SHA" || { echo "::error::pi 与钉住的 commit 不一致：期望 $PI_SHA，实际 $actual"; exit 1; }
+          echo "pi @ ${actual}（${PI_REF}）"
+          test "${actual}" = "${PI_SHA}" || { echo "::error::pi 与钉住的 commit 不一致：期望 ${PI_SHA}，实际 ${actual}"; exit 1; }
 
       - name: Clone sibling pi-web（pinned tag + SHA 断言）
         shell: bash
         run: |
           git clone --depth 1 --branch "$PI_WEB_REF" "$PI_WEB_REPO" pi-web
           actual=$(git -C pi-web rev-parse HEAD)
-          echo "pi-web @ $actual（$PI_WEB_REF）"
-          test "$actual" = "$PI_WEB_SHA" || { echo "::error::pi-web 与钉住的 commit 不一致：期望 $PI_WEB_SHA，实际 $actual"; exit 1; }
+          echo "pi-web @ ${actual}（${PI_WEB_REF}）"
+          test "${actual}" = "${PI_WEB_SHA}" || { echo "::error::pi-web 与钉住的 commit 不一致：期望 ${PI_WEB_SHA}，实际 ${actual}"; exit 1; }
 
       - name: Ensure ffmpeg（品牌化生成 web 位图图标所需；已装则跳过）
         shell: bash

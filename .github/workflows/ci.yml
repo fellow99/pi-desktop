@@ -41,21 +41,23 @@ jobs:
         with:
           path: pi-desktop
 
+      # 注：含中文的 echo/test 一律用 ${var} 定界——macOS 自带 bash 3.2 在 C locale 下
+      #   会把紧邻的 UTF-8 首字节吞进无括号变量名（release.yml v0.12.1 首发因此失败）。
       - name: Clone sibling pi（pinned tag + SHA 断言）
         shell: bash
         run: |
           git clone --depth 1 --branch "$PI_REF" "$PI_REPO" pi
           actual=$(git -C pi rev-parse HEAD)
-          echo "pi @ $actual（$PI_REF）"
-          test "$actual" = "$PI_SHA" || { echo "::error::pi 与钉住的 commit 不一致：期望 $PI_SHA，实际 $actual"; exit 1; }
+          echo "pi @ ${actual}（${PI_REF}）"
+          test "${actual}" = "${PI_SHA}" || { echo "::error::pi 与钉住的 commit 不一致：期望 ${PI_SHA}，实际 ${actual}"; exit 1; }
 
       - name: Clone sibling pi-web（pinned tag + SHA 断言）
         shell: bash
         run: |
           git clone --depth 1 --branch "$PI_WEB_REF" "$PI_WEB_REPO" pi-web
           actual=$(git -C pi-web rev-parse HEAD)
-          echo "pi-web @ $actual（$PI_WEB_REF）"
-          test "$actual" = "$PI_WEB_SHA" || { echo "::error::pi-web 与钉住的 commit 不一致：期望 $PI_WEB_SHA，实际 $actual"; exit 1; }
+          echo "pi-web @ ${actual}（${PI_WEB_REF}）"
+          test "${actual}" = "${PI_WEB_SHA}" || { echo "::error::pi-web 与钉住的 commit 不一致：期望 ${PI_WEB_SHA}，实际 ${actual}"; exit 1; }
 
       - name: Ensure ffmpeg（品牌化生成 web 位图图标所需；已装则跳过）
         shell: bash
