@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * ②′ smoke-desktop.mjs — 宿主机门禁（module 010-build-pipeline）
+ * ②′ smoke-desktop.mjs — 宿主机门禁（module 012-building-workflow）
  *
  * 用法：
  *   node scripts/smoke-desktop.mjs [--source <pi-web 或 pi-dist>] [--port <n>] [--timeout <ms>]

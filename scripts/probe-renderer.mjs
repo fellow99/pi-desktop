@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * probe-renderer.mjs — P0-3 渲染层与原生件探针（module 010-build-pipeline 的验证工具）
+ * probe-renderer.mjs — P0-3 渲染层与原生件探针（module 012-building-workflow 的验证工具）
  *
  * 用途：对**正在运行**的 Pi Desktop 做渲染层断言。与 smoke-desktop.mjs 的分工：
  *   - smoke-desktop.mjs：宿主机门禁，用「与运行时同版 Node」起 `pi-dist` 的服务端做 HTTP 断言；

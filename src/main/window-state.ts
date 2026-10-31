@@ -12,7 +12,7 @@ import {
 import { describeError, logError, logInfo } from './logger';
 
 /**
- * 窗口状态记忆与全屏快捷键（module 002-window 的一部分）。
+ * 窗口状态记忆与全屏快捷键（module 103-window 的一部分）。
  * 🔶 沿用 dsh-desktop 的范式：防抖 400 ms、`getNormalBounds()`、多显示器可见性校验、
  * 异常状态一律回退默认值（绝不把窗口恢复到看不见的地方）。
  */

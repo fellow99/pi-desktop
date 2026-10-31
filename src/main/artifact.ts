@@ -8,7 +8,7 @@ import { describeError, logInfo, logWarn } from './logger';
 import { extractTarGz } from './tar-extract';
 
 /**
- * 产物引导（module 009-artifact-bootstrap）：
+ * 产物引导（module 102-artifact-bootstrap）：
  *   `pi-dist.tar.gz`（构建期打包的 pi-web 运行产物）→ 首启流式解压到 `<userData>/pi-dist`。
  *
  * 幂等判据：`<userData>/pi-dist.sha256` 的内容 === `pi-dist.version`（归档 SHA-256）。

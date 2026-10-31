@@ -15,7 +15,7 @@ import { checkForUpdates, openDownloadPage } from './update-check';
 import { createMainWindow, getMainWindow, loadPiWebUi, registerShellIpc, setStageOnWindow } from './windows';
 
 /**
- * 应用入口编排（module 007-app-entry）。
+ * 应用入口编排（module 111-app-entry）。
  *
  * 顺序（docs/工程规划.md §4.7 的启动时序）：
  *   Squirrel 短路 → 单实例锁 → whenReady 前安全准备（NO_PROXY / 系统 CA / 崩溃兜底）

@@ -43,8 +43,15 @@ pi-desktop/
 │   ├── overall-plan.md         # 整体技术方案
 │   ├── overall-data-model.md   # 数据模型（壳层实体 + 状态机 + 数据边界）
 │   ├── SPECS_CHECKLIST.md      # 规格与模块完成度检查表
-│   ├── 001-host/{spec.md,plan.md}   # 001 模块规格 + 方案（✅ 成对）
-│   └── 002-window/{spec.md,plan.md} # 002 模块规格 + 方案（✅ 成对）；003–011、201 的 spec/plan 待生成
+│   ├── 011-version-0.12.1/     # 公共模块：版本更新（spec/plan/tasks/test-cases）
+│   ├── 012-building-workflow/  # 公共模块：构建工作流（spec/plan）
+│   ├── 013-branding/           # 公共模块：品牌化（spec/plan/test-cases）
+│   ├── 101-host/               # 基础模块：宿主
+│   ├── 102-artifact-bootstrap/ # 基础模块：产物引导
+│   ├── 103-window/             # 基础模块：窗口
+│   ├── 104-preload/            # 基础模块：壳层桥
+│   ├── 108-tray/ … 113-release-update/  # 桌面特有基础模块（托盘/通知/生命周期/入口/配置/发布）
+│   └── 201-plugin-runtime/     # 扩展模块（⬜ spec/plan 待生成）
 │
 ├── src/
 │   ├── main/                   # Electron 主进程（**只写装配代码**，见 constitution.md §1.3）

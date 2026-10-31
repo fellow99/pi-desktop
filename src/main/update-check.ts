@@ -5,7 +5,7 @@ import { DEFAULT_UPDATE_FEED, UPDATE_CHECK_TIMEOUT_MS } from './constants';
 import { describeError, logInfo, logWarn } from './logger';
 
 /**
- * 检查更新（module 011-release-update，已决策 Q5 = 半自动）。
+ * 检查更新（module 113-release-update，已决策 Q5 = 半自动）。
  *
  * 行为：查询更新源 → 比较语义化版本 → 有新版则**打开下载页**（不自动下载、不静默安装）。
  * 数据源可用 `PI_DESKTOP_UPDATE_FEED` 覆盖（⬜ 待定：GitHub Releases API 还是

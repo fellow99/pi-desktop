@@ -5,7 +5,7 @@
 **技术栈：** Electron **43.7.9**（Node **24.21.0** / Chromium **150.0.7871.250** / ABI **148**）+ Electron Forge **^7.11.2**（plugin-vite + plugin-fuses）+ Vite **^7.3.6** + TypeScript **^5.6**；封装的宿主是 `pi` **v1.2.0** + `pi-web` **v0.12.1**（Next.js **16.3.8**）
 **上游基线：** `pi` tag **v1.2.0**（`Branch_v1.2.0`）· `pi-web` tag **v0.12.1**（`Branch_v0.12.1`）
 **文档生成时间：** 2026-10-12
-**最后更新：** 2026-10-12
+**最后更新：** 2026-10-31（编号按父工程规则统一）
 
 ---
 
@@ -14,7 +14,8 @@
 | 层级 | 说明 |
 |---|---|
 | 项目级顶层文档 | 架构、技术、宪法、结构、整体规格 / 方案 / 数据模型 + 检查清单 |
-| 模块规格 `0NN-<name>/` | 桌面壳基础模块（主进程装配、构建与配置），编号 **001–011** |
+| 公共模块 `0NN-<name>/` | 跨工程公共需求：`011` 版本、`012` 构建工作流、`013` 品牌化 |
+| 基础模块 `1NN-<name>/` | 本工程基础模块（主进程装配、构建与配置），编号 **101–113**（101–104 对齐 android 基线） |
 | 扩展模块 `2NN-<name>/` | 编号从 **201** 起；v1 只有 `201-plugin-runtime` 一个可选档 |
 
 每个模块目录下**必须成对**提供 `spec.md`（需求与验收）+ `plan.md`（设计与实现方案）；
@@ -51,63 +52,87 @@
 
 ---
 
-## 三、模块清单（001–011 + 201）
+## 三、模块清单（011–013 + 101–113 + 201）
 
-### 主进程装配模块（001–007）
+> 编号规则见 §四。**011–013 是父工程 `pi-workspace/specs/` 定义的跨工程公共模块**，本工程只写实现；
+> **101–113 是本工程基础模块**；**201+ 是插件/扩展模块**。`spec.md` 与 `plan.md` 必须成对；
+> 状态以 [SPECS_CHECKLIST.md](./SPECS_CHECKLIST.md) §2 与目录实际文件为准。
 
-> 这七个模块的规格意义大于文件意义：一个模块 = 一份需求 + 一份方案 + 一段可变的职责，
-> 不强制一个模块一个文件（对应实现散落在 `src/main/*.ts`，见 [STRUCTURE.md](./STRUCTURE.md) §1）。
-> **规格状态以 [SPECS_CHECKLIST.md](./SPECS_CHECKLIST.md) §2 为唯一口径**（本表随其同步）。
-
-| 编号 | 模块名 | 英文名 | 职责（一行） | 规格状态 |
-|---|---|---|---|---|
-| 001 | Host 宿主 | `host` | 环境装配（`PI_CODING_AGENT_DIR`/`PI_WEB_*`）、进程内启动 Next 服务器（含预览密钥轮换）、随机端口与随机密码、HTTP 轮询就绪判定、优雅关闭 | ✅ 成对（[001-host/](./001-host/)） |
-| 002 | 窗口管理 | `window` | `BrowserWindow` + loading 页（阶段可见）、同源加载 `http://127.0.0.1:<port>/`、导航加固、权限白名单、`window.open` 拦截 | ✅ 成对（[002-window/](./002-window/)） |
-| 003 | 系统托盘 | `tray` | 托盘单例与菜单（显示主窗口 / 会话目录 / 打开日志 / 检查更新 / 退出）、唤回、退出入口 | 见 [SPECS_CHECKLIST.md](./SPECS_CHECKLIST.md) §2（003-tray/） |
-| 004 | 原生通知 | `notification` | 会话 JSONL 尾随 → 原生通知策略（仅后台弹、同会话冷却去重、历史不补弹） | 见 [SPECS_CHECKLIST.md](./SPECS_CHECKLIST.md) §2（004-notification/） |
-| 005 | 生命周期与安全 | `lifecycle` | 单实例锁、`NO_PROXY` 并入、系统 CA 合并、代理绕过、崩溃兜底、优雅关闭链 | 见 [SPECS_CHECKLIST.md](./SPECS_CHECKLIST.md) §2（005-lifecycle/） |
-| 006 | 壳层桥 | `preload` | 默认空实现；按需启用**只承载壳层动作**的最小桥（数据面永不入 IPC） | 见 [SPECS_CHECKLIST.md](./SPECS_CHECKLIST.md) §2（006-preload/） |
-| 007 | 应用入口编排 | `app-entry` | 锁 → 安全准备 → `AppUserModelId` → 起宿主 → 建窗 → 托盘/通知 → `activate`/退出；Squirrel 事件 | ⬜ 待生成（见 [SPECS_CHECKLIST.md](./SPECS_CHECKLIST.md) §2） |
-
-### 构建与配置模块（008–011）
+### 公共模块（011–013）
 
 | 编号 | 模块名 | 英文名 | 职责（一行） | 规格状态 |
 |---|---|---|---|---|
-| 008 | 运行时配置 | `runtime-config` | 数据目录策略（`shared`/`app`，切换需重启）、预置 `settings/mcp/trust` 模板（不覆盖既有文件）、壳专用扩展/技能落点 | ⬜ 待生成（见 [SPECS_CHECKLIST.md](./SPECS_CHECKLIST.md) §2） |
-| 009 | 产物引导 | `artifact-bootstrap` | `pi-dist` 组装、`tar.gz`(ustar)、首启流式解压、SHA-256 marker 幂等（不是存在性判断） | ⬜ 待生成（见 [SPECS_CHECKLIST.md](./SPECS_CHECKLIST.md) §2） |
-| 010 | 构建流水线 | `build-pipeline` | `prepare-next` / `collect-pi` / `smoke-desktop` 门禁 / Forge 打包（`premake` 自动串联） | ⬜ 待生成（见 [SPECS_CHECKLIST.md](./SPECS_CHECKLIST.md) §2） |
-| 011 | 发布与更新 | `release-update` | 三 OS CI 矩阵、Release 资产、检查更新（半自动：查询 → 比较 → 引导下载） | ⬜ 待生成（见 [SPECS_CHECKLIST.md](./SPECS_CHECKLIST.md) §2） |
+| 011 | 版本更新：0.12.1 | `version` | 上游基线升到 `pi` v1.2.0 / `pi-web` v0.12.1；清中间产物后重跑流水线；版本号升到 `0.12.1`；更新 CI/Release 上游钉住值；提交 + tag `v0.12.1` | ✅ 成对（[011-version-0.12.1/](./011-version-0.12.1/) + `tasks.md` / `test-cases.md`） |
+| 012 | 构建工作流 | `building-workflow` | `prepare-next` / `collect-pi` / `smoke-desktop` 门禁 / Forge 打包（`premake` 自动串联）；三 OS CI 矩阵与 Release 资产 | ✅ 成对（[012-building-workflow/](./012-building-workflow/)） |
+| 013 | 品牌化 | `branding` | 清掉上游品牌：`pi-dist` 副本的文案 / 页面 Logo / web 位图图标 / favicon，以及本工程 `resources/*` 应用图标；运行时关掉上游版本检测但**保留当前版本显示** | ✅ 成对（[013-branding/](./013-branding/) + `test-cases.md`） |
 
-### 版本需求模块（012+）
+### 基础模块（101–113）
+
+> 101–104 与 `pi-desktop-android` 基线对齐（运行时接入 / 载荷流水线 / 渲染壳 / 宿主桥）；
+> 105–107 在本工程无独立模块（鉴权、工具顶替、合规章节并入宿主、上游与构建文档）；
+> 108–113 是桌面平台特有职责。
 
 | 编号 | 模块名 | 英文名 | 职责（一行） | 规格状态 |
 |---|---|---|---|---|
-| 012 | 品牌化 | `branding` | 清掉上游品牌：`pi-dist` 副本的文案 / 页面 Logo / web 位图图标 / favicon，以及本工程 `resources/*` 应用图标；运行时关掉上游版本检测但**保留当前版本显示** | ✅ 已生成（[spec.md](./012-branding/spec.md) / [plan.md](./012-branding/plan.md) / [test-cases.md](./012-branding/test-cases.md)，含轮次 1 执行结果） |
-| 101 | 版本更新：0.12.1 | `version` | 上游基线升级到 `pi` v1.2.0 / `pi-web` v0.12.1；清中间产物后重跑流水线；版本号升到 `0.12.1`；更新 CI/Release 工作流的上游钉住值；提交 + tag `v0.12.1` | ✅ 已生成（[spec.md](./101-version-0.12.1/spec.md) / [plan.md](./101-version-0.12.1/plan.md) / [tasks.md](./101-version-0.12.1/tasks.md) / [test-cases.md](./101-version-0.12.1/test-cases.md)） |
+| 101 | Host 宿主 | `host` | 环境装配（`PI_CODING_AGENT_DIR`/`PI_WEB_*`）、进程内启动 Next 服务器（含预览密钥轮换）、随机端口与随机密码、HTTP 轮询就绪判定、优雅关闭 | ✅ 成对（[101-host/](./101-host/)） |
+| 102 | 产物引导 | `artifact-bootstrap` | `pi-dist` 组装、`tar.gz`(ustar)、首启流式解压、SHA-256 marker 幂等（不是存在性判断） | ✅ 成对（[102-artifact-bootstrap/](./102-artifact-bootstrap/)） |
+| 103 | 窗口管理 | `window` | `BrowserWindow` + loading 页（阶段可见）、同源加载 `http://127.0.0.1:<port>/`、导航加固、权限白名单、`window.open` 拦截 | ✅ 成对（[103-window/](./103-window/)） |
+| 104 | 壳层桥 | `preload` | 默认空实现；按需启用**只承载壳层动作**的最小桥（数据面永不入 IPC） | ✅ 成对（[104-preload/](./104-preload/)） |
+| 108 | 系统托盘 | `tray` | 托盘单例与菜单（显示主窗口 / 会话目录 / 打开日志 / 检查更新 / 退出）、唤回、退出入口 | ✅ 成对（[108-tray/](./108-tray/)） |
+| 109 | 原生通知 | `notification` | 会话 JSONL 尾随 → 原生通知策略（仅后台弹、同会话冷却去重、历史不补弹） | ✅ 成对（[109-notification/](./109-notification/)） |
+| 110 | 生命周期与安全 | `lifecycle` | 单实例锁、`NO_PROXY` 并入、系统 CA 合并、代理绕过、崩溃兜底、优雅关闭链 | ✅ 成对（[110-lifecycle/](./110-lifecycle/)） |
+| 111 | 应用入口编排 | `app-entry` | 锁 → 安全准备 → `AppUserModelId` → 起宿主 → 建窗 → 托盘/通知 → `activate`/退出；Squirrel 事件 | ✅ 成对（[111-app-entry/](./111-app-entry/)） |
+| 112 | 运行时配置 | `runtime-config` | 数据目录策略（`shared`/`app`，切换需重启）、预置 `settings/mcp/trust` 模板（不覆盖既有文件）、壳专用扩展/技能落点 | ✅ 成对（[112-runtime-config/](./112-runtime-config/)） |
+| 113 | 发布与更新 | `release-update` | 三 OS CI 矩阵、Release 资产、检查更新（半自动：查询 → 比较 → 引导下载） | ✅ 成对（[113-release-update/](./113-release-update/)） |
 
-> 说明：`001`–`011` 与 `201` 的「规格状态」列写于早期快照；**截至 2026-10-13，`001`–`012` 的 `spec.md`/`plan.md` 均已存在（成对）**，`201` 仍未生成（是否要做尚未决策）。以 [SPECS_CHECKLIST.md](./SPECS_CHECKLIST.md) §2 与各目录实际文件为准。
 ### 扩展模块（201+）
 
 | 编号 | 模块名 | 英文名 | 职责（一行） | 规格状态 |
 |---|---|---|---|---|
-| 201 | 扩展投放 | `plugin-runtime` | 壳专用扩展/技能的物化与 `settings.json` 接线（可选档）；上游 UI 已内置 Plugins/Skills/MCP 管理，**不建独立市场工程**（Q7） | ⬜ 待生成（见 [SPECS_CHECKLIST.md](./SPECS_CHECKLIST.md) §2） |
+| 201 | 扩展投放 | `plugin-runtime` | 壳专用扩展/技能的物化与 `settings.json` 接线（可选档）；上游 UI 已内置 Plugins/Skills/MCP 管理，**不建独立市场工程**（Q7） | ✅ 成对（Status Proposed；是否启用待决策） |
 
-**编号分配依据**：[`../docs/工程规划.md`](../docs/工程规划.md) §6.4。**编号只增不改、不复用。**
-`dsh-desktop` 的 `008-desktop-profile`（dsh profile）与 `201-dsh-market`（插件市场）在本工程**无对应物**
-（`pi` 无 profile 概念；上游 UI 已内置插件管理），见工程规划 §4.9、§6.3、Q7。
+### 编号迁移对照（2026-10-31）
+
+> 按父工程 `pi-workspace/specs/constitution.md` 的 0XX/1XX/2XX 规则统一编号；旧目录用 `git mv` 保留历史。
+> 迁移只改编号与引用，不改模块职责。
+
+| 旧编号 | 新编号 | 说明 |
+|---|---|---|
+| `001-host` | `101-host` | 对齐 android 101 运行时接入 |
+| `002-window` | `103-window` | 对齐 android 103 渲染壳 |
+| `003-tray` | `108-tray` | 桌面特有，落在 108+ |
+| `004-notification` | `109-notification` | 桌面特有 |
+| `005-lifecycle` | `110-lifecycle` | 桌面特有 |
+| `006-preload` | `104-preload` | 对齐 android 104 宿主能力桥 |
+| `007-app-entry` | `111-app-entry` | 桌面特有 |
+| `008-runtime-config` | `112-runtime-config` | 桌面特有 |
+| `009-artifact-bootstrap` | `102-artifact-bootstrap` | 对齐 android 102 载荷流水线 |
+| `010-build-pipeline` | `012-building-workflow` | 公共模块 |
+| `011-release-update` | `113-release-update` | 桌面特有；`011` 让位给版本模块 |
+| `012-branding` | `013-branding` | 公共模块 |
+| `011-version-0.12.1` | `011-version-0.12.1` | 版本模块统一为 011 |
+
+> 说明：`201` 规格已成对，但 Status 为 Proposed（是否启用待产品决策）；`105`–`107` 保留给 android 基线的鉴权 / 工具扩展 / 合规模块，
+> 本工程如未来拆分对应职责再启用，不复用其它编号。
 
 ---
 
 ## 四、编号规则
 
-1. **段位**：`0xx` = 桌面壳基础模块（主进程装配 + 构建与配置），`2xx` = 扩展模块（从 **201** 起）。
-   编号**只增不改、不复用**；作废编号留空不回收（🔶 沿用 `dsh-desktop` / `oc-desktop` 口径，工程规划 §6.4）。
-2. **目录名**：`<NNN>-<kebab-name>`（示例：`001-host`、`201-plugin-runtime`）。
-3. **成对交付**：`spec.md` 与 `plan.md` **必须成对**，只交一半视为未完成。
-4. **需求条目**：`FR-<module>-<三位数>`（模块级三位数；项目级统一用 `FR-000-<三位数>`，见
+1. **段位**（与父工程 `pi-workspace/specs/constitution.md` 一致）：
+   - `0XX` = 各子工程公共、共同的需求模块：`011-version-<VERSION>`（版本更新）、
+     `012-building-workflow`（构建工作流）、`013-branding`（品牌化）。
+   - `1XX` = 本工程自己的基础功能模块；尽量与 `pi-desktop-android` 基线对齐（101 运行时接入、
+     102 载荷流水线、103 渲染壳、104 宿主能力桥），平台特有职责从 108 起。
+   - `2XX` = 补丁、插件模块（`201` 起）；共通插件尽量对齐（203 目录选择器、204 Git、205 pnpm、206 PTY）。
+2. **编号只增不改、不复用**；作废编号留空不回收。版本模块是唯一例外：`011-version-<VERSION>`
+   以 `<VERSION>` 区分同一公共模块的不同版本实例，历史版本目录保留、不重编号。
+3. **目录名**：`<NNN>-<kebab-name>`（示例：`101-host`、`013-branding`、`201-plugin-runtime`）。
+4. **成对交付**：`spec.md` 与 `plan.md` **必须成对**，只交一半视为未完成。
+5. **需求条目**：`FR-<module>-<三位数>`（模块级三位数；项目级统一用 `FR-000-<三位数>`，见
    [overall-spec.md](./overall-spec.md) §3）；动作用 **MUST / MUST NOT / SHOULD / MAY** 表述；
    条目**只追加不修订**，作废改标 `[SUPERSEDED by FR-xxx-nnn]`。
-5. **模块编号 ⇄ 目录 ⇄ 规格** 三处必须一致；新增模块先改本文件与 `SPECS_CHECKLIST.md`，再建目录。
+6. **模块编号 ⇄ 目录 ⇄ 规格** 三处必须一致；新增模块先改本文件与 `SPECS_CHECKLIST.md`，再建目录。
 
 ---
 
@@ -139,8 +164,8 @@
 | 先看全貌 | [`../docs/工程规划.md`](../docs/工程规划.md) → 本文件 → [ARCHITECTURE.md](./ARCHITECTURE.md) |
 | 新加入开发者 | [constitution.md](./constitution.md) → [STRUCTURE.md](./STRUCTURE.md) → [overall-spec.md](./overall-spec.md) → 具体模块 `spec.md` |
 | 架构师 / 评审 | [ARCHITECTURE.md](./ARCHITECTURE.md) → [TECH.md](./TECH.md) → [overall-plan.md](./overall-plan.md) → [overall-data-model.md](./overall-data-model.md) |
-| 桌面壳开发 | [STRUCTURE.md](./STRUCTURE.md) → 001/002/003/005 的 `spec.md` + `plan.md` |
-| 构建 / 发布 | [overall-plan.md](./overall-plan.md) §9–§10 → 010/009/011 的 `spec.md` + `plan.md` |
+| 桌面壳开发 | [STRUCTURE.md](./STRUCTURE.md) → 101/103/108/110 的 `spec.md` + `plan.md` |
+| 构建 / 发布 | [overall-plan.md](./overall-plan.md) §9–§10 → 012/102/113 的 `spec.md` + `plan.md` |
 | 测试 / QA | [SPECS_CHECKLIST.md](./SPECS_CHECKLIST.md) → 各模块 `spec.md` 的验收场景 → [`../docs/工程规划.md`](../docs/工程规划.md) §11.4 安全自查 |
 | 风险 / 开放问题 | [`../docs/工程规划.md`](../docs/工程规划.md) §11 → [TECH.md](./TECH.md) §4 已知兼容风险 |
 

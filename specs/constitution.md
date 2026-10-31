@@ -95,7 +95,7 @@
 ## 5. 生命周期宪法
 
 1. **关窗即退出**：主窗口关闭 → `window-all-closed` → `app.quit()`（v1 口径，对齐 `dsh-desktop`）；
-   若存在运行中的 agent 会话，关窗前给一次确认提示（⬜ 会话运行态判定来源见工程规划 §5.4 与 `specs/004-notification`）。
+   若存在运行中的 agent 会话，关窗前给一次确认提示（⬜ 会话运行态判定来源见工程规划 §5.4 与 `specs/109-notification`）。
    托盘「退出」是等效退出通道。
 2. **优雅关闭链 + deadline 强退**：退出时按序执行
    「置 `isQuitting` → 关闭 SSE（或调用等价钩子）→ `httpServer.close()` → 超时 `app.exit()` 强退」，

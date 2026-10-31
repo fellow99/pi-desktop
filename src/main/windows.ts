@@ -7,7 +7,7 @@ import { describeError, getStage, logError, logInfo, logWarn } from './logger';
 import { loadWindowState, installFullscreenShortcut, trackWindowState } from './window-state';
 
 /**
- * 窗口管理（module 002-window）。
+ * 窗口管理（module 103-window）。
  *
  * 形态（🔶 沿用 dsh-desktop）：常规标题栏 `frame: true`、`sandbox: true` + `contextIsolation: true`
  * + **无 nodeIntegration**；加载走「先 loading 页 → 就绪后 loadURL(内嵌服务端)」两段式。
@@ -51,7 +51,7 @@ export function getMainWindow(): BrowserWindow | null {
 }
 
 /**
- * 窗口图标（module 012-branding 的 FR-012-008）：走父工程物料，不依赖可执行文件图标。
+ * 窗口图标（module 013-branding 的 FR-013-008）：走父工程物料，不依赖可执行文件图标。
  * 打包态在 `process.resourcesPath`（forge `extraResource`），开发态在仓库 `resources/`。
  */
 function resolveWindowIcon(): string | undefined {

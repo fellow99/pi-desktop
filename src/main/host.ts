@@ -21,7 +21,7 @@ import { describeError, logError, logInfo, logWarn } from './logger';
 import { ensureAgentDirTree, materializePresetTemplates, resolveAgentDir, type ShellSettings } from './settings';
 
 /**
- * host.ts — 服务端宿主（module 001-host）。
+ * host.ts — 服务端宿主（module 101-host）。
  *
  * 选定形态（已决策 Q2）：**Electron 主进程进程内**启动 pi-web 的 Next 服务器。
  *   - 入口：`node_modules/next/dist/server/lib/start-server.js` 的 `startServer` 导出

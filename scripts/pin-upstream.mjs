@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 上游版本钉住（module 010-build-pipeline）
+ * 上游版本钉住（module 012-building-workflow）
  *
  * 用法：node scripts/pin-upstream.mjs [--out upstream.lock.json] [--check]
  *

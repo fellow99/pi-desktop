@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * brand-assets.mjs — 品牌化（module **012-branding**：UI 文案 / 页面 Logo / 应用图标 / 禁用版本检测）
+ * brand-assets.mjs — 品牌化（module **013-branding**：UI 文案 / 页面 Logo / 应用图标 / 禁用版本检测）
  *
  * ## 为什么需要它
  *
- * 交付物里有两处「别人的品牌」必须换成我们自己的（`specs/012-branding/spec.md`）：
+ * 交付物里有两处「别人的品牌」必须换成我们自己的（`specs/013-branding/spec.md`）：
  *
  * 1. **Web UI**（`collect-pi` 组装出来的 `pi-dist/` 副本）：`Pi Web` 文案、页面 Logo、
  *    web 位图图标（favicon / PWA 图标）都来自上游 `pi-web`；
@@ -77,7 +77,7 @@ const LOGO_SRC_REPLACEMENTS = [
 ];
 
 /**
- * 必须**逐字不变**的技术标识符（spec FR-012-002）：替换后逐项比对总出现次数。
+ * 必须**逐字不变**的技术标识符（spec FR-013-002）：替换后逐项比对总出现次数。
  *
  * 为什么需要：`BRAND_FROM`（带空格）与这些标识符（连字符/下划线/驼峰）本不可能互相包含，
  * 但一旦有人把 `BRAND_FROM` 改成 `pi-web`、或把替换做成大小写不敏感，这里会立刻失败 ——
@@ -279,7 +279,7 @@ export function loadMaterial(argv = []) {
   if (!existsSync(assetsDir)) {
     fail(
       `物料目录不存在：${assetsDir}\n` +
-        `  品牌化依赖**父工程** assets/（见 specs/012-branding/spec.md §4.1）；CI 场景依赖仓内镜像 resources/brand/。\n` +
+        `  品牌化依赖**父工程** assets/（见 specs/013-branding/spec.md §4.1）；CI 场景依赖仓内镜像 resources/brand/。\n` +
         `  可用 --assets <dir> 或 PI_ASSETS_DIR 指定。`,
     );
   }
@@ -289,7 +289,7 @@ export function loadMaterial(argv = []) {
     fail(
       `物料缺失（${missing.length} 项）：${missing.join('、')}\n` +
         `  目录：${assetsDir}\n` +
-        `  期望物料清单见 specs/012-branding/spec.md §4.1；**不得**静默降级为无品牌产物。`,
+        `  期望物料清单见 specs/013-branding/spec.md §4.1；**不得**静默降级为无品牌产物。`,
     );
   }
 
@@ -437,7 +437,7 @@ function countOccurrences(text, needle) {
 /**
  * 品牌文案 + Logo `src` 路径替换（只在 `pi-dist` 副本上）。
  *
- * 同时统计**技术标识符**集合的出现次数：替换前后必须逐项不变（FR-012-002 的回归断言）。
+ * 同时统计**技术标识符**集合的出现次数：替换前后必须逐项不变（FR-013-002 的回归断言）。
  */
 function replaceBrandInTree(roots, { skipDirs = new Set() } = {}) {
   const stats = {
@@ -517,7 +517,7 @@ function countInTree(root, needle, { skipDirs = new Set(['node_modules']) } = {}
 /**
  * 写 `pi-dist` 副本的 web 品牌：图标 + favicon 路由体 + `logo.svg` + 文案/Logo 路径替换，最后**后置断言**。
  *
- * 断言（spec FR-012-004，**状态式**，因此可重跑）：
+ * 断言（spec FR-013-004，**状态式**，因此可重跑）：
  * ① 预渲染 HTML 内不得残留 `Pi Web`、必须出现 `Pi Desktop`；
  * ② 全树不得残留**旧 Logo 渲染路径**（`src:"/icons/apple-touch-icon.png"` 等），且必须出现 `/icons/logo.svg`；
  * ③ 技术标识符集合的出现次数不变；

@@ -5,7 +5,7 @@ import { PRODUCT_NAME } from './constants';
 import { describeError, logError, logInfo } from './logger';
 
 /**
- * 系统托盘（module 003-tray）。
+ * 系统托盘（module 108-tray）。
  *
  * 形态（🔶 沿用 dsh-desktop + 平台惯例补充）：
  *   - 单例 `Tray`，图标 `resources/tray.png`；macOS 用模板图 `trayTemplate.png`（深浅色自适应）；

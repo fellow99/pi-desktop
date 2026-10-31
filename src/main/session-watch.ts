@@ -5,7 +5,7 @@ import { SESSION_WATCH_INTERVAL_MS } from './constants';
 import { describeError, logInfo, logWarn } from './logger';
 
 /**
- * 会话文件尾随（module 004-notification 的事件源）。
+ * 会话文件尾随（module 109-notification 的事件源）。
  *
  * 为什么不用渲染层/上游钩子（docs/工程规划.md §5.4）：
  *   `pi-web` 的事件只经 SSE 暴露给**渲染层**，主进程没有现成钩子；而 dsh 那种

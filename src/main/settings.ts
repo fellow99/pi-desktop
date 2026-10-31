@@ -7,7 +7,7 @@ import { SETTINGS_FILE_NAME } from './constants';
 import { describeError, logInfo, logWarn } from './logger';
 
 /**
- * 运行时配置（module 008-runtime-config）。
+ * 运行时配置（module 112-runtime-config）。
  *
  * 数据目录策略（已决策 Q6）：
  *   - `shared`（默认）：`~/.pi/agent` —— 与 `pi` CLI 共用凭据、会话、扩展、MCP 配置，桌面版

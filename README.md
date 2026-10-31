@@ -90,7 +90,7 @@ and reason, and logged to `<userData>/logs/`):
 | Shutdown | Ctrl-C in the terminal | graceful chain: set `isQuitting` → close SSE → `httpServer.close()` → hard exit after a `5 s` deadline |
 | Upgrade | manual `git pull` + rebuild | ship a new `pi-dist.tar.gz`; a changed SHA-256 marker triggers a **re-extract** with no stale files |
 
-## Branding and icons (requirement 012-branding)
+## Branding and icons (requirement 013-branding)
 
 Because this is an assembly project, branding is applied **only to our own artifacts** (`pi-dist/` copy
 and `resources/`), leaving all three upstream repos untouched:
@@ -165,7 +165,7 @@ builds the three-OS matrix and publishes the Release assets.
 | CI | Node | **24.21.0** | same version as the runtime (the gate starts the server with the same Node) |
 | Upstream (shipped inside `pi-dist`) | `pi-web` | **0.12.1** (Next **16.3.8** App Router) | SPA + `/api/*` (~90 routes) + SSE |
 | Upstream (shipped inside `pi-dist`) | `pi` | **1.2.0** (`@earendil-works/pi-coding-agent`, …) | in-process SDK; `packages/*` locked at 1.2.0 |
-| Upstream native module | `node-pty` | 1.2.0-beta.15 | `serverExternalPackages`; **measured loadable under ABI 148** (round 2) with a build-time completeness gate (`FR-010-027`) |
+| Upstream native module | `node-pty` | 1.2.0-beta.15 | `serverExternalPackages`; **measured loadable under ABI 148** (round 2) with a build-time completeness gate (`FR-012-027`) |
 
 The shell's only runtime dependency is `electron-squirrel-startup`; `next` / `@earendil-works/*` /
 `node-pty` all come from `pi-dist` (the shipped `pi-dist.tar.gz`) and are **not part of the shell build**.
@@ -221,7 +221,7 @@ npm run probe:renderer  # renderer/terminal assertions against a **running** app
 > tree; each platform builds its own artifacts (cross-packaging would ship the wrong native modules for
 > `node-pty` / SWC).
 >
-> ⚠️ Native-dependency completeness is part of the build gate (`FR-010-027`): `prepare-next` verifies that
+> ⚠️ Native-dependency completeness is part of the build gate (`FR-012-027`): `prepare-next` verifies that
 > `node-pty` actually has `build/Release/*.node` or `prebuilds/<platform>-<arch>/*.node`; **an empty shell
 > directory fails the build** with a fix recipe. Reason: upstream `scripts/prebuild.js` only checks whether
 > the directory exists, so an empty one is mistaken for "prebuilt" and `node-gyp` is skipped — the symptom

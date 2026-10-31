@@ -3,7 +3,7 @@ import { app } from 'electron';
 import { describeError, logError, logInfo, logWarn } from './logger';
 
 /**
- * 生命周期与安全横切（module 005-lifecycle）。
+ * 生命周期与安全横切（module 110-lifecycle）。
  * 三件事都是 🔶 沿用 dsh-desktop 的既有范式（opencode 系桌面的共同做法）：
  *   1. loopback 并入 NO_PROXY/no_proxy + Chromium 的 `proxy-bypass-list <-loopback>`；
  *   2. 系统 CA 合并（企业代理/自签场景），能力缺失时**安全降级不抛错**；

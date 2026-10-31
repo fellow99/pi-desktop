@@ -1,5 +1,5 @@
 /**
- * preload（module 006-preload）—— 只承载**壳层动作**的最小桥。
+ * preload（module 104-preload）—— 只承载**壳层动作**的最小桥。
  *
  * 关键约束：
  *   1. **数据面永不过 IPC**：Pi Web UI 的一切经同源 HTTP（`/api/*` + SSE）直达内嵌服务端；

@@ -5,7 +5,7 @@ import { describeError, logInfo, logWarn } from './logger';
 import { startSessionWatch, type AssistantMessageEvent } from './session-watch';
 
 /**
- * 原生通知（module 004-notification）。
+ * 原生通知（module 109-notification）。
  *
  * 事件源 = 会话 JSONL 尾随（见 session-watch.ts 的说明）。
  * 策略（对齐 dsh 的取舍：只在**用户不在看**的时候打扰）：

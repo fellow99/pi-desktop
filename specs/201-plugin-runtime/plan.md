@@ -62,7 +62,7 @@
 | U1 | 上游 UI 已内置 Plugins / Skills / MCP / Agents 管理：`pi-web` 有 `/api/plugins/**`、`/api/skills/**`、`/api/mcp/**`、`/api/subagents/**` 与对应设置页 | ✅ §2.2（约 90 条路由清单） |
 | U2 | pi 的状态目录布局含 `extensions/`、`skills/`、`prompts/`、`themes/`，可用 `PI_CODING_AGENT_DIR` 重定向 | ✅ `pi/packages/coding-agent/src/config.ts`、§2.1 |
 | U3 | `settings.json` 的 `Settings` 接口含 `packages?: PackageSource[]`、`extensions?: string[]`（本地扩展文件路径或目录）、`defaultProjectTrust?: DefaultProjectTrust`（默认 `"ask"`、全局设置） | ✅ `pi/packages/coding-agent/src/core/settings-manager.ts` |
-| U4 | 桌面**恢复**了 HOS 上被剥夺的能力：原生 `bash` 工具、MCP stdio、OAuth 回环、`git`/worktree、`rg`/`fd`、在线安装扩展/技能 | ✅ §9.3（因此**不需要** HOS 的 102-harmony-js-tools 那类壳扩展顶替，也不需要 PL1「仅本地源」限制） |
+| U4 | 桌面**恢复**了 HOS 上被剥夺的能力：原生 `bash` 工具、MCP stdio、OAuth 回环、`git`/worktree、`rg`/`fd`、在线安装扩展/技能 | ✅ §9.3（因此**不需要** HOS 的 106-harmony-js-tools 那类壳扩展顶替，也不需要 PL1「仅本地源」限制） |
 | U5 | dsh 的市场工程（`201-dsh-market`）在本工程被**剔除**；其对应的 `runtime.ts`（便携 Node/pnpm）也剔除 | ✅ §6.3 |
 | U6 | 扩展发现规则：是「扫描 `extensions/` 目录」，还是「必须登记进 `settings.json.extensions`」 | ⬜ **Phase 0/1 探针**：临时 `PI_CODING_AGENT_DIR` → 只放目录 vs 只写 `settings.json` → 观察上游加载结果 |
 | U7 | 上游是否有「禁用」状态的持久化位置（用于 FR-201-012 的判定） | ⬜ 探针：在上游 UI 禁用一次扩展 → 观察 `settings.json`/`trust.json`/目录标记的写入 |
@@ -113,7 +113,7 @@ target present + not managed     → skipped('user-owned')（不改动）
 |---|---|
 | `electron.app` | `getAppPath()`、`process.resourcesPath` |
 | `node:fs` / `node:path` | 复制、改名、标记读写、路径拼接 |
-| 008-runtime-config | `resolveAgentDir()`（目标根）、`ensureAgentDirTree()`（父目录） |
+| 112-runtime-config | `resolveAgentDir()`（目标根）、`ensureAgentDirTree()`（父目录） |
 | `src/main/logger.ts` | `logInfo/logWarn/describeError` |
 
 ### 5.3 事件协议
@@ -183,6 +183,6 @@ target present + not managed     → skipped('user-owned')（不改动）
 | FR-201-001…004（不建市场 / 不内置运行时 / 零改动） | §2 合规表 + §3.1 决策表（Q7、§6.3） |
 | FR-201-005…008（投放落点 / 跟随 agentDir / 真实复制 / 命名空间） | §1.1 投放目标 + §4.3 校验规则 + §6.2 |
 | FR-201-009…013（幂等 / 更新 / 不覆盖用户 / 尊重删除 / 原子） | §4.2 状态机 + §6.2「原子投放」「用户意图判定」 |
-| FR-201-014…016（只用上游字段 / 不覆盖 / 不静默改信任） | §3.1 决策表 + §6.2「接线」+ 008 FR-008-010 |
+| FR-201-014…016（只用上游字段 / 不覆盖 / 不静默改信任） | §3.1 决策表 + §6.2「接线」+ 008 FR-112-010 |
 | FR-201-017…019（清单日志 / 失败不阻塞 / 诊断展示） | §5.1 `describeDeployedAssets()` + §6.3 |
 | §5 验收场景 S1–S6 | §7 测试考量（S1/S2/S5 集成；S3/S4 单元与探针；S6 边界核对） |

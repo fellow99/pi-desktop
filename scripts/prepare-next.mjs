@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * ① prepare-next.mjs — 构建 pi-web 生产产物（module 010-build-pipeline）
+ * ① prepare-next.mjs — 构建 pi-web 生产产物（module 012-building-workflow）
  *
  * 用法：
  *   node scripts/prepare-next.mjs [--source <pi-web 目录>] [--no-install] [--force-install] [--skip-build]
@@ -106,7 +106,7 @@ function verifyArtifacts(source) {
 }
 
 /**
- * 原生依赖完整性校验（FR-010-027，fail-visible）。
+ * 原生依赖完整性校验（FR-012-027，fail-visible）。
  *
  * 为什么必须有：`node-pty` 的 install 脚本是 `node scripts/prebuild.js || node-gyp rebuild`，
  * 而它只看 `prebuilds/<platform>-<arch>/` **目录是否存在** —— 目录存在但没有 `.node`（本机 2026-10-13
@@ -161,7 +161,7 @@ function main() {
     console.log('[pi-desktop][prepare-next] --no-install：跳过依赖安装');
   }
 
-  // 原生依赖完整性：放在 npm ci 之后、next build 之前 —— 坏安装立刻失败，不浪费一次构建（FR-010-027）。
+  // 原生依赖完整性：放在 npm ci 之后、next build 之前 —— 坏安装立刻失败，不浪费一次构建（FR-012-027）。
   verifyNativeDeps(source);
 
   if (args.build) {

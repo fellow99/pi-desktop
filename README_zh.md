@@ -83,7 +83,7 @@ CLI / RPC / JSON / SDK 四种集成入口。`Pi Web` 是它的本地浏览器界
 | 关闭 | 终端里 Ctrl-C | 优雅关闭链：置 `isQuitting` → 关 SSE → `httpServer.close()` → `5 s` deadline 后强退 |
 | 升级 | 手动 `git pull` + 重建 | 换包即换 `pi-dist.tar.gz`；marker（SHA-256）变化即**重新解压**，不留旧文件 |
 
-## 品牌与图标（需求 012-branding）
+## 品牌与图标（需求 013-branding）
 
 本工程是「装配」工程，因此品牌化**只施加在自己的产物上**（`pi-dist/` 副本与 `resources/`），上游三仓零改动：
 
@@ -154,7 +154,7 @@ CLI / RPC / JSON / SDK 四种集成入口。`Pi Web` 是它的本地浏览器界
 | CI | Node | **24.21.0** | 与运行时同版（门禁用同一个 Node 起服务） |
 | 上游（随 `pi-dist` 分发） | `pi-web` | **0.12.1**（Next **16.3.8** App Router） | SPA + `/api/*`（约 90 条路由）+ SSE |
 | 上游（随 `pi-dist` 分发） | `pi` | **1.2.0**（`@earendil-works/pi-coding-agent` 等） | 进程内 SDK；`packages/*` lockstep 1.2.0 |
-| 上游原生件 | `node-pty` | 1.2.0-beta.15 | `serverExternalPackages`；**ABI 148 下实测可加载**（轮次 2），并有构建期完整性守卫（`FR-010-027`） |
+| 上游原生件 | `node-pty` | 1.2.0-beta.15 | `serverExternalPackages`；**ABI 148 下实测可加载**（轮次 2），并有构建期完整性守卫（`FR-012-027`） |
 
 壳层自身运行时依赖只有 `electron-squirrel-startup`；`next` / `@earendil-works/*` / `node-pty` 等全部来自
 `pi-dist`（随包的 `pi-dist.tar.gz`），**不参与壳层构建**。
@@ -208,7 +208,7 @@ npm run probe:renderer  # 对**运行中**的应用做渲染层/终端断言（�
 > ⚠️ 裁剪原生件只在**副本**（`pi-dist`）上做，绝不在 `../pi-web` 源目录里删；
 > 三平台**各自构建各自产物**，不做交叉打包（否则 `node-pty` / SWC 的原生件会错平台）。
 >
-> ⚠️ 原生依赖完整性是构建门禁的一部分（`FR-010-027`）：`prepare-next` 会检查 `node-pty` 是否真有
+> ⚠️ 原生依赖完整性是构建门禁的一部分（`FR-012-027`）：`prepare-next` 会检查 `node-pty` 是否真有
 > `build/Release/*.node` 或 `prebuilds/<platform>-<arch>/*.node`；**空壳目录即构建失败**并给出修法。
 > 起因：上游 `scripts/prebuild.js` 只判断目录是否存在，空目录会被误判为「已预构建」而跳过 `node-gyp`，
 > 症状要到运行期终端 500 才暴露（本机实测踩到过）。

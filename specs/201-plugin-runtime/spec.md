@@ -2,7 +2,7 @@
 
 > **Module:** 201-plugin-runtime（扩展投放）  **Status:** Proposed  **Last Updated:** 2026-10-12  **上游基线:** pi v1.1.0 / pi-web v0.11.1
 > **对应方案:** [`./plan.md`](./plan.md)
-> **实现落点:** `extensions/`、`skills/`（壳专用内容）＋ 008-runtime-config 的投放逻辑
+> **实现落点:** `extensions/`、`skills/`（壳专用内容）＋ 112-runtime-config 的投放逻辑
 > **规划依据:** `docs/工程规划.md` §0.3（Q7）、§2.2（上游扩展点）、§6.2（目录结构）、§6.3（剔除市场）、§9.3
 
 ## 1. 模块概述
@@ -75,7 +75,7 @@
 
 - FR-201-014：当壳专用内容需要显式登记才能被上游加载时，系统 MUST 只使用 `settings.json` 中**上游既有字段**（✅ 已核实存在 `packages`、`extensions`、`defaultProjectTrust`；见 `pi/packages/coding-agent/src/core/settings-manager.ts`），并 MUST NOT 新增自定义字段。
 - FR-201-015：系统 MUST NOT 覆盖用户在 `settings.json` 中已有的 `packages`/`extensions` 值；如确需追加，MUST 采用「不破坏既有条目的追加」策略并记录变更（⬜ 追加时机与冲突规则待 Phase 1 定案）。
-- FR-201-016：系统 MUST NOT 通过 `settings.json` 静默改变项目信任（`defaultProjectTrust` MUST 保持保守，见 008 FR-008-010）。
+- FR-201-016：系统 MUST NOT 通过 `settings.json` 静默改变项目信任（`defaultProjectTrust` MUST 保持保守，见 008 FR-112-010）。
 
 ### 3.5 可观测性
 
@@ -148,7 +148,7 @@
 - **约束**：⬜ 壳命名空间的形式（前缀 vs 标记文件）与「用户已删除后是否重投」的机制尚未定案（FR-201-008、FR-201-012）；定案前**不得**实现为「每次启动无条件覆盖」，那是明确违反 FR-201-012 的行为。
 - **约束**：⚠️ R7（共享目录下 CLI 与 pi-web 并发写同一会话不受支持）与本模块的投放无直接关系，但**共享模式下投放到 `~/.pi/agent` 会影响 CLI**：因此壳资产 MUST 保持小而明确，并在文档中说明投放到共享目录的事实（⬜ 文档落点：`README.md`）。
 - **约束**：本模块为**可选档**（§6.4 备注「可选档」）：v1 可以只实现目录与投放框架，不必须随附任何具体扩展/技能（⬜ v1 是否随附壳资产待产品决定）。
-- **约束**：`.exit`/`.close`、MCP stdio、`child_process` 等能力在桌面上都可用（§9.3 恢复），因此**不需要**像 HOS 那样用壳扩展顶替 `bash`/`grep`/`find`（对照 `pi-desktop-hos` 的 102-harmony-js-tools 与 PL1 策略）。
+- **约束**：`.exit`/`.close`、MCP stdio、`child_process` 等能力在桌面上都可用（§9.3 恢复），因此**不需要**像 HOS 那样用壳扩展顶替 `bash`/`grep`/`find`（对照 `pi-desktop-hos` 的 106-harmony-js-tools 与 PL1 策略）。
 
 ## 8. 依赖
 
@@ -160,9 +160,9 @@
 
 **下游（消费本模块）**
 
-- 008-runtime-config：提供 `agentDir` 与目录树（本模块投放到其中）。
-- 007-app-entry：启动序中调用投放（在目录树创建之后、宿主启动之前的合适位置）。
-- 010-build-pipeline：把 `extensions/`、`skills/` 纳入随包分发的资源清单（⬜ 需与 `forge.config.ts` 的 `extraResource` 对齐）。
+- 112-runtime-config：提供 `agentDir` 与目录树（本模块投放到其中）。
+- 111-app-entry：启动序中调用投放（在目录树创建之后、宿主启动之前的合适位置）。
+- 012-building-workflow：把 `extensions/`、`skills/` 纳入随包分发的资源清单（⬜ 需与 `forge.config.ts` 的 `extraResource` 对齐）。
 - `README.md`：说明壳投放内容与共享目录的影响。
 
 **外部**

@@ -1,6 +1,6 @@
 # SPECS_CHECKLIST.md — 规格与模块检查清单
 
-> pi-desktop 规格文档与模块完成度追踪。**快照时间：2026-10-12**（对 `pi-desktop/` 工作树扫描，
+> pi-desktop 规格文档与模块完成度追踪。**快照时间：2026-10-31（编号迁移后）**（对 `pi-desktop/` 工作树扫描，
 > 不含 `.git`、`node_modules`）。标记：`✅` 已存在且内容完整 · `🔶` 已存在但部分/进行中 · `⬜` 未开工（写明理由与出口）。
 > 依据：[`../docs/工程规划.md`](../docs/工程规划.md) §6.4（模块编号）、§10（分阶段计划）、§11（风险）、§12（文档体系）。
 
@@ -10,7 +10,7 @@
 
 | # | 文档 | 路径 | 状态 | 说明 |
 |---|---|---|---|---|
-| P-01 | 文档索引 | [README.md](./README.md) | ✅ | 文档总览 / 项目级文档 / 模块清单（001–011 + 201）/ 编号规则 / 文档结构规范 / 阅读顺序 |
+| P-01 | 文档索引 | [README.md](./README.md) | ✅ | 文档总览 / 项目级文档 / 模块清单（011–013 + 101–113 + 201）/ 编号规则 / 文档结构规范 / 阅读顺序 |
 | P-02 | 项目宪法 | [constitution.md](./constitution.md) | ✅ | 架构 / 安全 / IPC / 代码质量 / 生命周期 / 构建与治理 六章 + 使用方式 |
 | P-03 | 整体架构 | [ARCHITECTURE.md](./ARCHITECTURE.md) | ✅ | 一句话架构 / 进程模型图 / 分层 / 数据流 / 12 条关键决策 / 与 `dsh-desktop`、`pi-desktop-hos` 差异 / 部署拓扑 |
 | P-04 | 技术选型 | [TECH.md](./TECH.md) | ✅ | 版本表 / 5 条选型理由 / 上游依赖表 / 12 条兼容风险 / 运行环境与门禁 |
@@ -27,31 +27,33 @@
 
 ---
 
-## 2. 模块级文档（`M-01 … M-13`）
+## 2. 模块级文档（`M-01 … M-14`）
 
 口径：`spec.md` 与 `plan.md` **必须成对**（[constitution.md](./constitution.md) §6.4）；
-「未生成」**不是缺漏**，而是 Phase 1 的排期产物 —— 未生成的模块**不允许**在代码里出现与规格冲突的结论。
+编号按父工程规则：`011–013` 公共模块、`101–113` 基础模块、`201+` 扩展模块。
+「未生成」**不是缺漏**，而是排期产物 —— 未生成的模块**不允许**在代码里出现与规格冲突的结论。
 
 | # | 编号 / 模块 | `spec.md` | `plan.md` | 状态 | 理由 / 出口 |
 |---|---|---|---|---|---|
-| M-01 | `001-host`（Host 宿主） | ✅ [spec.md](./001-host/spec.md) | ✅ [plan.md](./001-host/plan.md) | ✅ 成对 | 已生成（192 + 225 行）；实现落点 `src/main/host.ts`（+ `constants.ts`/`logger.ts`） |
-| M-02 | `002-window`（窗口管理） | ✅ [spec.md](./002-window/spec.md) | ✅ [plan.md](./002-window/plan.md) | ✅ 成对 | 已生成（212 + 238 行）；实现落点 `src/main/windows.ts`（+ `window-state.ts`） |
-| M-03 | `003-tray`（系统托盘） | ✅ [spec.md](./003-tray/spec.md) | ✅ [plan.md](./003-tray/plan.md) | ✅ 成对 | 已生成（173 + 185 行）；实现落点 `src/main/tray.ts` |
-| M-04 | `004-notification`（原生通知） | ✅ [spec.md](./004-notification/spec.md) | ✅ [plan.md](./004-notification/plan.md) | ✅ 成对 | 已生成（171 + 216 行）；实现落点 `src/main/notifications.ts` + `session-watch.ts`；⬜ 事件源待 P0-5 取证 |
-| M-05 | `005-lifecycle`（生命周期与安全） | ✅ [spec.md](./005-lifecycle/spec.md) | ✅ [plan.md](./005-lifecycle/plan.md) | ✅ 成对 | 已生成（188 + 233 行）；实现落点 `src/main/lifecycle.ts` |
-| M-06 | `006-preload`（壳层桥） | ✅ [spec.md](./006-preload/spec.md) | ✅ [plan.md](./006-preload/plan.md) | ✅ 成对 | 已生成（158 + 142 行）；实现落点 `src/preload/index.ts`（`file://` 守卫） |
-| M-07 | `007-app-entry`（应用入口编排） | ✅ [spec.md](./007-app-entry/spec.md) | ✅ [plan.md](./007-app-entry/plan.md) | ✅ 成对 | 实现落点 `src/main/index.ts`（Squirrel→锁→安全准备→whenReady→窗→托盘→boot→退出链） |
-| M-08 | `008-runtime-config`（运行时配置） | ✅ [spec.md](./008-runtime-config/spec.md) | ✅ [plan.md](./008-runtime-config/plan.md) | ✅ 成对 | 实现落点 `src/main/settings.ts` + `config/*.json`；⬜ 预置模板合并策略（O6）待定 |
-| M-09 | `009-artifact-bootstrap`（产物引导） | ✅ [spec.md](./009-artifact-bootstrap/spec.md) | ✅ [plan.md](./009-artifact-bootstrap/plan.md) | ✅ 成对 | 实现落点 `src/main/artifact.ts` + `tar-extract.ts`；P0-4 取证 3/4（解压期内存曲线未采样） |
-| M-10 | `010-build-pipeline`（构建流水线） | ✅ [spec.md](./010-build-pipeline/spec.md) | ✅ [plan.md](./010-build-pipeline/plan.md) | ✅ 成对 | 脚本 `scripts/*.mjs` + `forge.config.ts` + `vite.*.config.ts`；轮次 1 复核 prebuilds 裁剪**未丢文件** |
-| M-11 | `011-release-update`（发布与更新） | ✅ [spec.md](./011-release-update/spec.md) | ✅ [plan.md](./011-release-update/plan.md) | ✅ 成对 | `.github/workflows/*` + `src/main/update-check.ts`；⬜ 更新数据源待人工确认 |
-| M-12 | `201-plugin-runtime`（扩展投放，可选档） | ⬜ | ⬜ | ⬜ 未生成 | 上游 UI 已内置 Plugins/Skills/MCP 管理（Q7）；本工程是否需要该档**尚未决策**（工程规划 §10 Phase 2 之后） |
-| M-13 | `012-branding`（品牌化，**版本需求型**） | ✅ [spec.md](./012-branding/spec.md) | ✅ [plan.md](./012-branding/plan.md) | ✅ 成对（+ [`test-cases.md`](./012-branding/test-cases.md) 含执行结果） | 15 条 `FR-012-*` / 7 条 `AC-*`；轮次 1 打包态端到端 **TC 16 PASS / 0 FAIL**（证据 `logs/20261013-0/`，见 [../../docs/构建验证记录.md](../../docs/构建验证记录.md) 轮次 1） |
+| M-01 | `101-host`（Host 宿主） | ✅ [spec.md](./101-host/spec.md) | ✅ [plan.md](./101-host/plan.md) | ✅ 成对 | 实现落点 `src/main/host.ts`（+ `constants.ts`/`logger.ts`） |
+| M-02 | `102-artifact-bootstrap`（产物引导） | ✅ [spec.md](./102-artifact-bootstrap/spec.md) | ✅ [plan.md](./102-artifact-bootstrap/plan.md) | ✅ 成对 | 实现落点 `src/main/artifact.ts` + `tar-extract.ts`；P0-4 取证 3/4（解压期内存曲线未采样） |
+| M-03 | `103-window`（窗口管理） | ✅ [spec.md](./103-window/spec.md) | ✅ [plan.md](./103-window/plan.md) | ✅ 成对 | 实现落点 `src/main/windows.ts`（+ `window-state.ts`） |
+| M-04 | `104-preload`（壳层桥） | ✅ [spec.md](./104-preload/spec.md) | ✅ [plan.md](./104-preload/plan.md) | ✅ 成对 | 实现落点 `src/preload/index.ts`（`file://` 守卫） |
+| M-05 | `108-tray`（系统托盘） | ✅ [spec.md](./108-tray/spec.md) | ✅ [plan.md](./108-tray/plan.md) | ✅ 成对 | 实现落点 `src/main/tray.ts` |
+| M-06 | `109-notification`（原生通知） | ✅ [spec.md](./109-notification/spec.md) | ✅ [plan.md](./109-notification/plan.md) | ✅ 成对 | 实现落点 `src/main/notifications.ts` + `session-watch.ts`；⬜ 事件源待 P0-5 取证 |
+| M-07 | `110-lifecycle`（生命周期与安全） | ✅ [spec.md](./110-lifecycle/spec.md) | ✅ [plan.md](./110-lifecycle/plan.md) | ✅ 成对 | 实现落点 `src/main/lifecycle.ts` |
+| M-08 | `111-app-entry`（应用入口编排） | ✅ [spec.md](./111-app-entry/spec.md) | ✅ [plan.md](./111-app-entry/plan.md) | ✅ 成对 | 实现落点 `src/main/index.ts`（Squirrel→锁→安全准备→whenReady→窗→托盘→boot→退出链） |
+| M-09 | `112-runtime-config`（运行时配置） | ✅ [spec.md](./112-runtime-config/spec.md) | ✅ [plan.md](./112-runtime-config/plan.md) | ✅ 成对 | 实现落点 `src/main/settings.ts` + `config/*.json`；⬜ 预置模板合并策略（O6）待定 |
+| M-10 | `113-release-update`（发布与更新） | ✅ [spec.md](./113-release-update/spec.md) | ✅ [plan.md](./113-release-update/plan.md) | ✅ 成对 | `.github/workflows/*` + `src/main/update-check.ts`；⬜ 更新数据源待人工确认 |
+| M-11 | `011-version-0.12.1`（版本更新） | ✅ [spec.md](./011-version-0.12.1/spec.md) | ✅ [plan.md](./011-version-0.12.1/plan.md) | ✅ 成对（+ `tasks.md` / `test-cases.md`） | 上游基线 v1.2.0 / v0.12.1；版本号 0.12.1；tag v0.12.1 |
+| M-12 | `012-building-workflow`（构建工作流） | ✅ [spec.md](./012-building-workflow/spec.md) | ✅ [plan.md](./012-building-workflow/plan.md) | ✅ 成对 | 脚本 `scripts/*.mjs` + `forge.config.ts` + `vite.*.config.ts`；轮次 1 复核 prebuilds 裁剪**未丢文件** |
+| M-13 | `013-branding`（品牌化，**公共模块**） | ✅ [spec.md](./013-branding/spec.md) | ✅ [plan.md](./013-branding/plan.md) | ✅ 成对（+ [`test-cases.md`](./013-branding/test-cases.md) 含执行结果） | `FR-013-*` / `AC-*`；轮次 1 打包态端到端 **TC 16 PASS / 0 FAIL**（证据 `logs/20261013-0/`） |
+| M-14 | `201-plugin-runtime`（扩展投放，可选档） | ✅ [spec.md](./201-plugin-runtime/spec.md) | ✅ [plan.md](./201-plugin-runtime/plan.md) | ✅ 成对（Status Proposed） | 上游 UI 已内置 Plugins/Skills/MCP 管理（Q7）；规格已成对，**是否启用该档待产品决策** |
 
-**模块级合计（2026-10-13 复核）：12 / 12 成对 ✅（`001`–`012`，含本轮的 `012-branding`）；`201-plugin-runtime` 仍为 ⬜（是否要做尚未决策）。**
+**模块级合计：14 / 14 成对 ✅（`011`–`013`、`101`–`104`、`108`–`113`、`201`）；`201` Status 为 Proposed，是否启用待决策。**
 
-> ⚠️ 本表原按 **2026-10-12 快照**填写（当时 `007`–`011` 标为「未生成」）；2026-10-13 复核发现这些目录内的 `spec.md` / `plan.md` **均已存在**，故已改判「✅ 成对」。
-> 行数未逐项复核；**最新状态以 `specs/<NNN>-<name>/` 目录内的实际文件为准**。
+> 编号迁移见 [README.md](./README.md) §三「编号迁移对照」。`105`–`107` 保留给 android 基线
+> （鉴权 / 工具扩展 / 合规），本工程未拆分独立模块；`108`–`113` 为桌面平台特有职责。
 
 ---
 
@@ -62,17 +64,17 @@
 
 | 模块 | 声称落点 | 实际 | 备注 |
 |---|---|---|---|
-| 001-host | `src/main/host.ts` | ✅ | 含 `resolveFreePort` / `assembleEnv` / `resolvePassword` / `rotatePreviewSecrets` / `waitForReady` / `startHost` / `installAuthInjection` / `installAuthForWindow` / `closeWithDeadline` |
-| 002-window | `src/main/windows.ts`、`window-state.ts` | ✅ | 含 loading 页阶段回传、导航加固、权限白名单、`registerShellIpc`、F11 |
-| 003-tray | `src/main/tray.ts` | ✅ | 含 `TrayActions` 的就绪态禁用 |
-| 004-notification | `src/main/notifications.ts`、`session-watch.ts` | ✅ | 冷却去重 + 后台判定 + 启动基线（不补弹） |
-| 005-lifecycle | `src/main/lifecycle.ts` | ✅ | `ensureLoopbackNoProxy` / `setupSystemCertificates` / `installCrashHandlers` |
-| 006-preload | `src/preload/index.ts` | ✅ | `location.protocol === 'file:'` 守卫 + 6 个壳层动作 |
-| 007-app-entry | `src/main/index.ts` | ✅ | Squirrel → 锁 → 安全准备 → whenReady → 窗 → 托盘 → boot → 退出链 |
-| 008-runtime-config | `src/main/settings.ts`、`config/*.json` | ✅ | `AgentDirMode` / `ShellSettings` / 预置模板物化 |
-| 009-artifact-bootstrap | `src/main/artifact.ts`、`tar-extract.ts` | ✅ | 流式 ustar + marker 幂等 |
-| 010-build-pipeline | `scripts/*.mjs`、`forge.config.ts`、`vite.*.config.ts` | ✅ | 四脚本 + `prepackage`/`premake` 钩子 |
-| 011-release-update | `.github/workflows/{ci,release}.yml`、`src/main/update-check.ts` | ✅ | 三 OS 矩阵 + Release 资产 + 半自动更新检查 |
+| 101-host | `src/main/host.ts` | ✅ | 含 `resolveFreePort` / `assembleEnv` / `resolvePassword` / `rotatePreviewSecrets` / `waitForReady` / `startHost` / `installAuthInjection` / `installAuthForWindow` / `closeWithDeadline` |
+| 103-window | `src/main/windows.ts`、`window-state.ts` | ✅ | 含 loading 页阶段回传、导航加固、权限白名单、`registerShellIpc`、F11 |
+| 108-tray | `src/main/tray.ts` | ✅ | 含 `TrayActions` 的就绪态禁用 |
+| 109-notification | `src/main/notifications.ts`、`session-watch.ts` | ✅ | 冷却去重 + 后台判定 + 启动基线（不补弹） |
+| 110-lifecycle | `src/main/lifecycle.ts` | ✅ | `ensureLoopbackNoProxy` / `setupSystemCertificates` / `installCrashHandlers` |
+| 104-preload | `src/preload/index.ts` | ✅ | `location.protocol === 'file:'` 守卫 + 6 个壳层动作 |
+| 111-app-entry | `src/main/index.ts` | ✅ | Squirrel → 锁 → 安全准备 → whenReady → 窗 → 托盘 → boot → 退出链 |
+| 112-runtime-config | `src/main/settings.ts`、`config/*.json` | ✅ | `AgentDirMode` / `ShellSettings` / 预置模板物化 |
+| 102-artifact-bootstrap | `src/main/artifact.ts`、`tar-extract.ts` | ✅ | 流式 ustar + marker 幂等 |
+| 012-building-workflow | `scripts/*.mjs`、`forge.config.ts`、`vite.*.config.ts` | ✅ | 四脚本 + `prepackage`/`premake` 钩子 |
+| 113-release-update | `.github/workflows/{ci,release}.yml`、`src/main/update-check.ts` | ✅ | 三 OS 矩阵 + Release 资产 + 半自动更新检查 |
 | — | `specs/` 项目级 9 件 | ✅ | 本次交付 |
 | — | `docs/工程规划.md` | ✅ | 唯一权威规划文档 |
 | — | `docs/{桌面能力清单,构建验证记录,发布与更新}.md` | ✅ | 工程规划 §12.2 的产出（内容由各自主责作者维护） |
@@ -105,7 +107,7 @@
 ## 5. 完成度统计
 
 - **项目级文档**：9 / 9 ✅（100%）。
-- **模块级规格**（快照）：6 / 12 成对；6 / 12 未生成 —— 但 5 个未生成的模块**实现代码已在树内**，缺口在规格两侧。
+- **模块级规格**：14 / 14 成对 ✅（`011`–`013`、`101`–`104`、`108`–`113`、`201`）。
 - **代码落点**：主进程 14 个模块文件 + preload/renderer/types 全部在位；构建脚本 4 件、CI/Release 工作流 2 件在位；`patches/` 未建。
 - **探针与门禁**：**0 项完成、2 项部分推进**（G-01 骨架：`npm ci` + 类型门通过；G-08 门禁：类型门 ✅，冒烟脚本未执行）。
   当前最大的未知面 = P0-1（进程内 Next 内部入口）与 P0-3（`node-pty` 在 ABI 148 下能否加载）。

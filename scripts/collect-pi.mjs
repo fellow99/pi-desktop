@@ -272,7 +272,7 @@ async function main() {
   if (args.rotate) rotate(staging);
   materializePresets(staging);
 
-  // 品牌化（module 012-branding，spec FR-012-001…009）：只作用在 staging 副本上，上游零改动；
+  // 品牌化（module 013-branding，spec FR-013-001…009）：只作用在 staging 副本上，上游零改动；
   // 顺序放在预置资源投放之后，并紧跟全树终检（预置目录里的旧品牌文案也能兜住）。
   const brandingMaterial = loadMaterial(args.assets ? ['--assets', args.assets] : []);
   log('品牌化 staging（文案 / 页面 Logo / web 图标 / favicon）…');
