@@ -129,7 +129,8 @@
    以 `<VERSION>` 区分同一公共模块的不同版本实例，历史版本目录保留、不重编号。
 3. **目录名**：`<NNN>-<kebab-name>`（示例：`101-host`、`013-branding`、`201-plugin-runtime`）。
 4. **成对交付**：`spec.md` 与 `plan.md` **必须成对**，只交一半视为未完成。
-5. **需求条目**：`FR-<module>-<三位数>`（模块级三位数；项目级统一用 `FR-000-<三位数>`，见
+5. **需求条目**：模块级用 `FR-<module>-<三位数>`，允许语义别名 `FR-ver-*` / `FR-brand-*`（须在
+   `spec.md` 头部声明别名 ↔ 模块编号的对应关系）；项目级统一用 `FR-000-<三位数>`（见
    [overall-spec.md](./overall-spec.md) §3）；动作用 **MUST / MUST NOT / SHOULD / MAY** 表述；
    条目**只追加不修订**，作废改标 `[SUPERSEDED by FR-xxx-nnn]`。
 6. **模块编号 ⇄ 目录 ⇄ 规格** 三处必须一致；新增模块先改本文件与 `SPECS_CHECKLIST.md`，再建目录。
