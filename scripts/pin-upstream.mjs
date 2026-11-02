@@ -74,7 +74,7 @@ function main() {
     },
     upstream: [describeRepo('pi', join(REPO_PARENT, 'pi')), describeRepo('pi-web', join(REPO_PARENT, 'pi-web'))],
     // 本工程基线（docs/工程规划.md 文档头）——与 sibling 的实际 commit 一起记录，便于复核漂移。
-    baseline: { pi: 'v1.4.0 (Branch_v1.4.0)', piWeb: 'v0.13.0 (Branch_v0.13.0)' },
+    baseline: { pi: 'v1.4.0 (Branch_v1.4.0)', piWeb: 'v0.14.1 (Branch_v0.14.1)' },
   };
 
   for (const repo of payload.upstream) {

@@ -31,8 +31,8 @@ env:
   PI_REF: v1.4.0
   PI_SHA: 4a080252f06caf63a525d7873c5d94d3c23887e0
   PI_WEB_REPO: https://github.com/agegr/pi-web.git
-  PI_WEB_REF: v0.13.0
-  PI_WEB_SHA: d128bae47cd3abbdfe7135443ac793f547c14e47
+  PI_WEB_REF: v0.14.1
+  PI_WEB_SHA: 506168bf11dc444c02aea9cf9c85ca63755b8e0f
 
 jobs:
   build:
