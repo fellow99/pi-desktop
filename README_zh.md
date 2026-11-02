@@ -10,8 +10,8 @@
 > 提供的 Pi Web UI，桌面壳补齐 pi 自己没有的东西（托盘、原生通知、单实例、窗口状态、产物引导、更新引导），
 > 界面 **100% 复用上游**、不 fork 前端。
 
-**版本**：`0.12.1`（tag `v0.12.1`；见 [docs/构建验证记录.md](docs/构建验证记录.md)）
-· **上游基线**：`pi` **v1.2.0**（`Branch_v1.2.0`）+ `pi-web` **v0.12.1**（`Branch_v0.12.1`）
+**版本**：`0.13.0`（tag `v0.13.0`；见 [docs/构建验证记录.md](docs/构建验证记录.md)）
+· **上游基线**：`pi` **v1.4.0**（`Branch_v1.4.0`）+ `pi-web` **v0.13.0**（`Branch_v0.13.0`）
 · **运行时**：Electron **43.7.9**（Node **24.21.0** / Chromium **150.0.7871.250** / ABI **148**）
 · **应用名 / 可执行名 / 应用 ID**：`Pi Desktop` / `pi-desktop` / `com.fellow99.pi.desktop`
 
@@ -94,7 +94,7 @@ CLI / RPC / JSON / SDK 四种集成入口。`Pi Web` 是它的本地浏览器界
 | web 位图图标 | `public/icons/{icon-512,icon-192,apple-touch-icon}.png` + `favicon.ico` 路由体由物料生成并**回读 IHDR 校验**（512² rgb24 不透明；其余带 alpha） |
 | 应用图标 | `resources/{icon.png,icon.ico,icon.icns,tray.png,trayTemplate.png}` 由物料**逐字节固化**，窗口图标显式使用物料 |
 | 物料来源 | **父工程 `<workspace>/assets/`**（唯一来源，缺失/尺寸不符/透明度不符 ⇒ **构建失败**）；同时镜像到 `resources/brand/` 供 CI 使用 |
-| 版本检测 | 运行时置位 `PI_WEB_SKIP_VERSION_CHECK=1`：`/api/app-update` 返回 `updateAvailable=false`、`releaseUrl=""`，但**保留 `currentVersion` 显示**（轮次 2 实测 `0.11.1`，本轮 0.12.1 实测）；壳层自己的「检查更新」是唯一更新引导 |
+| 版本检测 | 运行时置位 `PI_WEB_SKIP_VERSION_CHECK=1`：`/api/app-update` 返回 `updateAvailable=false`、`releaseUrl=""`，但**保留 `currentVersion` 显示**（轮次 2 实测 `0.11.1`、0.12.1 轮次实测、0.13.0 轮次实测）；壳层自己的「检查更新」是唯一更新引导 |
 | 实现 | `scripts/brand-assets.mjs`（可 `npm run brand` 单独跑）+ `scripts/collect-pi.mjs` 接线；末尾三层断言 + 全树终检（`Pi Web` = 0 处） |
 
 ## 能力清单
@@ -152,7 +152,7 @@ CLI / RPC / JSON / SDK 四种集成入口。`Pi Web` 是它的本地浏览器界
 | 构建 | TypeScript | `^5.6.0`（strict，`tsc --noEmit`） | `@types/node` `^24.3.0` |
 | 构建 | makers | Forge 5 个 maker | Squirrel(win) / ZIP(win,mac,linux) / DMG(mac) / RPM(linux) / DEB(linux) |
 | CI | Node | **24.21.0** | 与运行时同版（门禁用同一个 Node 起服务） |
-| 上游（随 `pi-dist` 分发） | `pi-web` | **0.12.1**（Next **16.3.8** App Router） | SPA + `/api/*`（约 90 条路由）+ SSE |
+| 上游（随 `pi-dist` 分发） | `pi-web` | **0.13.0**（Next **16.3.8** App Router） | SPA + `/api/*`（约 90 条路由）+ SSE |
 | 上游（随 `pi-dist` 分发） | `pi` | **1.2.0**（`@earendil-works/pi-coding-agent` 等） | 进程内 SDK；`packages/*` lockstep 1.2.0 |
 | 上游原生件 | `node-pty` | 1.2.0-beta.15 | `serverExternalPackages`；**ABI 148 下实测可加载**（轮次 2），并有构建期完整性守卫（`FR-012-027`） |
 
@@ -166,7 +166,7 @@ CLI / RPC / JSON / SDK 四种集成入口。`Pi Web` 是它的本地浏览器界
 | 项 | 要求 |
 |---|---|
 | Node | **24.21.0**（官方二进制；与 Electron 43.7.9 内置版本一致）。上游门禁是 `>=22.19.0`，但门禁脚本必须与运行时同版才能代表真实行为 |
-| 同级工程 | `../pi`（submodule，`Branch_v1.2.0`）、`../pi-web`（submodule，`Branch_v0.12.1`）—— 本工程用 **sibling 源码引用**，不用 npm 依赖 |
+| 同级工程 | `../pi`（submodule，`Branch_v1.4.0`）、`../pi-web`（submodule，`Branch_v0.13.0`）—— 本工程用 **sibling 源码引用**，不用 npm 依赖 |
 | 品牌物料 | `../assets/`（父工程：`logo.svg`、`logo.png`、`logo-1024-with-bg.png`、`logo-200-with-bg.png`、`logo.ico`、`logo.icns`）——缺失即构建失败（可用 `--assets` 或 `PI_ASSETS_DIR` 覆盖） |
 | 包管理 | `npm`（`npm ci` 消费各自的 lockfile） |
 | git | 克隆 submodule、`pin:upstream` 记录 SHA、`git/worktree` 能力验证 |
@@ -273,8 +273,8 @@ node scripts/probe-renderer.mjs --debug-port 9333 --cwd <可写目录>   # R1–
 
 ```
 pi-workspace/
-├── pi/                          # [submodule] 上游宿主 + SDK，固定 Branch_v1.2.0
-├── pi-web/                      # [submodule] 上游 UI + 服务端，固定 Branch_v0.12.1
+├── pi/                          # [submodule] 上游宿主 + SDK，固定 Branch_v1.4.0
+├── pi-web/                      # [submodule] 上游 UI + 服务端，固定 Branch_v0.13.0
 ├── assets/                      # 品牌物料（父工程；本工程经 ../assets 消费）
 ├── pi-desktop/                  # [submodule] ← 本工程（Electron 桌面壳）
 │      ├─ ../pi      （宿主 + SDK）  ← 构建期：npm install（产出 @earendil-works/* 依赖树）
