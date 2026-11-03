@@ -15,8 +15,8 @@
 桌面壳补齐托盘 / 原生通知 / 单实例 / 窗口状态 / 产物引导 / 更新引导。**UI 100% 复用上游，0 条上游补丁，不 fork 前端。**
 
 - 应用名 / 可执行名 / ID：`Pi Desktop` / `pi-desktop` / `com.fellow99.pi.desktop`
-- 上游基线：`pi` **v1.4.0** + `pi-web` **v0.13.0**（钉住在 `upstream.lock.json`）
-- 版本：`0.13.0`（tag `v0.13.0`）
+- 上游基线：`pi` **v1.5.0** + `pi-web` **v0.14.2**（钉住在 `upstream.lock.json`）
+- 版本：`0.14.2`（tag `v0.14.2`）
 
 ## 二、关键目录
 

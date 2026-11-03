@@ -25,14 +25,14 @@ concurrency:
 
 env:
   NODE_VERSION: '24.21.0'
-  # 上游基线：上游仓库**没有** `Branch_v1.4.0` / `Branch_v0.13.0` 这类分支，等同物是 **tag**；
+  # 上游基线：上游仓库**没有** `Branch_v1.5.0` / `Branch_v0.14.2` 这类分支，等同物是 **tag**；
   # 除按 tag 克隆外还断言 commit SHA（与 upstream.lock.json 一致）——上游重打 tag 会立刻失败（fail-visible）。
   PI_REPO: https://github.com/earendil-works/pi.git
-  PI_REF: v1.4.0
-  PI_SHA: 4a080252f06caf63a525d7873c5d94d3c23887e0
+  PI_REF: v1.5.0
+  PI_SHA: f9a26365568127461c47a07a37dcb42c140a3ac5
   PI_WEB_REPO: https://github.com/agegr/pi-web.git
-  PI_WEB_REF: v0.14.1
-  PI_WEB_SHA: 506168bf11dc444c02aea9cf9c85ca63755b8e0f
+  PI_WEB_REF: v0.14.2
+  PI_WEB_SHA: 025e24e74fdbc8f46c4e0cf31c6d6b3fa6cf29d5
 
 jobs:
   build:
