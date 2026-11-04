@@ -153,7 +153,7 @@ CLI / RPC / JSON / SDK 四种集成入口。`Pi Web` 是它的本地浏览器界
 | 构建 | makers | Forge 5 个 maker | Squirrel(win) / ZIP(win,mac,linux) / DMG(mac) / RPM(linux) / DEB(linux) |
 | CI | Node | **24.21.0** | 与运行时同版（门禁用同一个 Node 起服务） |
 | 上游（随 `pi-dist` 分发） | `pi-web` | **0.13.0**（Next **16.3.8** App Router） | SPA + `/api/*`（约 90 条路由）+ SSE |
-| 上游（随 `pi-dist` 分发） | `pi` | **1.2.0**（`@earendil-works/pi-coding-agent` 等） | 进程内 SDK；`packages/*` lockstep 1.2.0 |
+| 上游（随 `pi-dist` 分发） | `pi` | **1.5.0**（`@earendil-works/pi-coding-agent` 等） | 进程内 SDK；`packages/*` lockstep 1.5.0 |
 | 上游原生件 | `node-pty` | 1.2.0-beta.15 | `serverExternalPackages`；**ABI 148 下实测可加载**（轮次 2），并有构建期完整性守卫（`FR-012-027`） |
 
 壳层自身运行时依赖只有 `electron-squirrel-startup`；`next` / `@earendil-works/*` / `node-pty` 等全部来自

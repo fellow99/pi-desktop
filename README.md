@@ -164,7 +164,7 @@ builds the three-OS matrix and publishes the Release assets.
 | Build | makers | 5 Forge makers | Squirrel(win) / ZIP(win,mac,linux) / DMG(mac) / RPM(linux) / DEB(linux) |
 | CI | Node | **24.21.0** | same version as the runtime (the gate starts the server with the same Node) |
 | Upstream (shipped inside `pi-dist`) | `pi-web` | **0.15.0** (Next **16.4.4** App Router) | SPA + `/api/*` (~90 routes) + SSE |
-| Upstream (shipped inside `pi-dist`) | `pi` | **1.2.0** (`@earendil-works/pi-coding-agent`, …) | in-process SDK; `packages/*` locked at 1.2.0 |
+| Upstream (shipped inside `pi-dist`) | `pi` | **1.5.0** (`@earendil-works/pi-coding-agent`, …) | in-process SDK; `packages/*` locked at 1.5.0 |
 | Upstream native module | `node-pty` | 1.2.0-beta.15 | `serverExternalPackages`; **measured loadable under ABI 148** (round 2) with a build-time completeness gate (`FR-012-027`) |
 
 The shell's only runtime dependency is `electron-squirrel-startup`; `next` / `@earendil-works/*` /
