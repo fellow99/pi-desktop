@@ -41,7 +41,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
+        os: [windows-latest, ubuntu-latest, ubuntu-24.04-arm, macos-latest]
 
     steps:
       - name: Checkout pi-desktop
@@ -157,7 +157,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: release-${{ runner.os }}
+          name: release-${{ runner.os }}-${{ runner.arch }}
           path: pi-desktop/out/make/**
           if-no-files-found: error
           retention-days: 7
@@ -199,7 +199,7 @@ jobs:
             - **Windows**：下载 `*.exe` 直接安装（未签名 → 可能出现 SmartScreen 提示，选择「仍要运行」）。
             - **macOS**：下载 `*.dmg`，若系统提示「无法验证开发者」，请**右键 → 打开**（或执行
               `xattr -dr com.apple.quarantine "/Applications/Pi Desktop.app"`）。
-            - **Linux**：下载 `*.deb` / `*.rpm` / `*.zip`（`.zip` 解压即用）。
+            - **Linux**：下载对应架构的 `*.deb` / `*.rpm` / `*.zip`（`.zip` 解压即用；`arm64` 文件名为 `*_arm64.deb` / `*.arm64.rpm` / `*-linux-arm64-*.zip`）。
 
             升级无需手动清理：应用首次启动会校验 `pi-dist` 归档的 SHA-256，与当前包不一致时自动重新解压。
 
