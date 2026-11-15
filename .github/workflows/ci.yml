@@ -20,11 +20,11 @@ env:
   # 上游基线：上游仓库**没有** `Branch_v1.5.0` / `Branch_v0.15.0` 这类分支，等同物是 **tag**；
   # 除按 tag 克隆外还断言 commit SHA（与 upstream.lock.json 一致）——上游重打 tag 会立刻失败（fail-visible）。
   PI_REPO: https://github.com/earendil-works/pi.git
-  PI_REF: v1.5.0
-  PI_SHA: f9a26365568127461c47a07a37dcb42c140a3ac5
+  PI_REF: v1.5.2
+  PI_SHA: b4afdddf44e059c67ccf5097e5317d913521b470
   PI_WEB_REPO: https://github.com/agegr/pi-web.git
-  PI_WEB_REF: v0.15.0
-  PI_WEB_SHA: f130910abf662b506b2ef2f475fc21a2fe57badc
+  PI_WEB_REF: v0.17.0
+  PI_WEB_SHA: 174bff967807cdb59abb0204198d3d7cc19c862d
 
 jobs:
   build:
