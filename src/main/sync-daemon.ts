@@ -37,12 +37,18 @@ const CONTROL_FILE = join(PLUGIN_ROOT, 'daemon-control.json');
 
 /** 状态轮询周期（FR-301-022：≤3s，取 2.5s）。 */
 const POLL_INTERVAL_MS = 2_500;
-/** starting 宽限上限（拉起后 20s 内 control 不可达不算失败，超过按失败处理）。 */
+/** starting 宽限上限（拉起后 20s 内 control 不可达不算失败，超过按失败处理并终止子进程）。 */
 const STARTING_DEADLINE_MS = 20_000;
 /** control 探活（GET /local/status）超时。 */
 const STATUS_TIMEOUT_MS = 2_000;
-/** 优雅停止（/local/quit 后等退出）的上限。 */
-const STOP_DEADLINE_MS = 5_000;
+/**
+ * 优雅停止窗口。上游 `Daemon.stop()` 只 abort SSE + 关 control + 停插件，**不清理** 30s 的
+ * `setInterval`（`pi-agent-hub/packages/sync-daemon/src/daemon.ts:114`，既无 `unref` 也无
+ * `process.exit`），因此**不能假设**它会自行退出——实测本机 `/local/quit` 后约 1.8s 退出
+ * （code=1），但该行为依赖上游未来改动。故窗口取 1.5s，超时**必须**强制终止进程树
+ * （FR-301-018）。见评审 Important-5 / plan D17。
+ */
+const STOP_DEADLINE_MS = 1_500;
 /** 单行日志转发截断。 */
 const LOG_LINE_MAX = 300;
 
@@ -94,7 +100,7 @@ type SyncDaemonFile = {
 
 type ControlCreds = { port: number; token: string };
 
-type LoadResult = { enabled: boolean; settings: SyncDaemonSettings; raw: SyncDaemonFile } | null;
+type LoadResult = { enabled: boolean; settings: SyncDaemonSettings } | null;
 
 // ---------------------------------------------------------------------------
 // 模块状态
@@ -106,6 +112,28 @@ let expectAlive = false;
 let status: SyncStatus = { state: 'disabled' };
 let pollTimer: NodeJS.Timeout | null = null;
 const statusListeners = new Set<(s: SyncStatus) => void>();
+
+/**
+ * start/stop 串行队列 + 退出闸门（评审 Important-3）：
+ * start 内部有多个 `await` 让出点，并发调用会各自通过 `childAlive()` 检查而各自 spawn，
+ * 后一个覆盖 `child` 引用 → 前一个子进程成孤儿、control 文件被两代共用。
+ * 所有导出入口（start/stop/apply）排队执行，互相不重入。
+ */
+let inflight: Promise<unknown> = Promise.resolve();
+/** 退出链已开始：此后一律不再 spawn（否则「点应用后立刻退出」会放出 detached 孤儿）。 */
+let shuttingDown = false;
+
+function serialize<T>(task: () => Promise<T>): Promise<T> {
+  const run = inflight.then(task, task);
+  // 队列自身不能因单个任务失败而断裂。
+  inflight = run.catch(() => undefined);
+  return run;
+}
+
+/** 退出链入口调用：置闸门，后续 start 一律拒绝。 */
+export function markSyncDaemonShuttingDown(): void {
+  shuttingDown = true;
+}
 
 function setStatus(next: SyncStatus): void {
   const changed = JSON.stringify(next) !== JSON.stringify(status);
@@ -144,7 +172,8 @@ function resolveDaemonBin(): string {
     const entry = createRequire(__filename).resolve('@pi-agent-hub/sync-daemon');
     candidates.push(join(dirname(entry), 'main.js'));
   } catch (err) {
-    logWarn(`[sync-daemon] daemon 包 require.resolve 失败（exports 只暴露 import 条件），回退 node_modules 目录探测：${describeError(err).split('\n')[0]}`);
+    // 设计如此（包 exports 只暴露 import 条件）；降为 info，避免每次启动都像故障（评审 Minor-15）。
+    logInfo(`[sync-daemon] 包入口 require.resolve 不可用，改用 node_modules 目录探测：${describeError(err).split('\n')[0]}`);
   }
   let dir = __dirname;
   for (let i = 0; i < 8; i += 1) {
@@ -223,12 +252,7 @@ function parseFile(text: string): LoadResult {
   return {
     enabled: raw.enabled === true,
     settings: { enabled: raw.enabled === true, hubUrl: hub.url, hostName: host.name, hubToken: hub.token },
-    raw: raw as SyncDaemonFile,
   };
-}
-
-export function getSyncConfigPath(): string {
-  return CONFIG_PATH;
 }
 
 /** 读配置；不存在 / 损坏 / 缺必填 → null（调用方按「配置缺失」处理，不抛错）。 */
@@ -258,8 +282,11 @@ export async function saveSyncConfig(settings: SyncDaemonSettings, opts: SyncRun
     await writeFile(tmpPath, JSON.stringify(file, null, 2) + '\n', { encoding: 'utf8', mode: 0o600 });
     try {
       await chmod(tmpPath, 0o600);
-    } catch {
-      /* Windows 上 chmod 无效属正常，不视为错误 */
+    } catch (err) {
+      // Windows 上 chmod 对 NTFS ACL 无效属正常；其它平台必须留痕（评审 Important-6）。
+      if (process.platform !== 'win32') {
+        logWarn(`[sync-daemon] 配置文件 chmod 0600 失败：${describeError(err).split('\n')[0]}`);
+      }
     }
     await rename(tmpPath, CONFIG_PATH);
     logInfo(`[sync-daemon] 配置已写入：${CONFIG_PATH}（enabled=${file.enabled}，hub=${file.hub.url}，host=${file.host.name}，token 不回显）`);
@@ -289,16 +316,29 @@ function controlRequest(creds: ControlCreds, method: 'GET' | 'POST', path: strin
 }
 
 async function readControlCreds(): Promise<ControlCreds | null> {
+  let raw: string;
   try {
-    const raw = await readFile(CONTROL_FILE, 'utf8');
-    const parsed = JSON.parse(raw) as Partial<ControlCreds>;
-    if (typeof parsed.port === 'number' && typeof parsed.token === 'string' && parsed.token.length > 0) {
-      return { port: parsed.port, token: parsed.token };
+    raw = await readFile(CONTROL_FILE, 'utf8');
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException | undefined)?.code;
+    // 尚未写出来（daemon 刚拉起）属正常；其它错误必须留痕（评审 Important-6）。
+    if (code !== 'ENOENT') {
+      logWarn(`[sync-daemon] 读取 control 凭据失败：${describeError(err).split('\n')[0]}`);
     }
     return null;
-  } catch {
+  }
+  let parsed: Partial<ControlCreds>;
+  try {
+    parsed = JSON.parse(raw) as Partial<ControlCreds>;
+  } catch (err) {
+    logWarn(`[sync-daemon] control 凭据文件损坏：${describeError(err).split('\n')[0]}`);
     return null;
   }
+  if (typeof parsed.port === 'number' && typeof parsed.token === 'string' && parsed.token.length > 0) {
+    return { port: parsed.port, token: parsed.token };
+  }
+  logWarn('[sync-daemon] control 凭据缺 port/token 字段');
+  return null;
 }
 
 /** control 是否可达（绿灯判据之一）：GET /local/status，2s 超时。 */
@@ -307,8 +347,12 @@ async function controlReachable(): Promise<boolean> {
   const creds = await readControlCreds();
   if (!creds) return false;
   try {
-    return (await controlRequest(creds, 'GET', '/local/status', STATUS_TIMEOUT_MS)) === 200;
-  } catch {
+    const code = await controlRequest(creds, 'GET', '/local/status', STATUS_TIMEOUT_MS);
+    if (code === 200) return true;
+    logWarn(`[sync-daemon] control 探活返回 HTTP ${code}（token 过期或非本进程代际）`);
+    return false;
+  } catch (err) {
+    logWarn(`[sync-daemon] control 探活失败：${describeError(err).split('\n')[0]}`);
     return false;
   }
 }
@@ -331,19 +375,28 @@ function startPolling(): void {
   pollTimer = setInterval(() => {
     void (async () => {
       if (!childAlive()) return; // 退出事件已处理
-      if (status.state === 'running') {
-        // 运行中也要持续探活：control 不可达 → 红（FR-301-021）
-        if (!(await controlReachable())) setStatus({ state: 'stopped', reason: 'control API 不可达' });
+      const reachable = await controlReachable();
+
+      // 可达即回绿（含 starting → running、stopped → running 自愈）：
+      // 上游 control server 在插件握手之后才监听，20s 预算在打包态冷启动时并不宽裕；
+      // 超时置红后仍继续探活，避免「假红 + 实际在同步」（评审 Important-4）。
+      if (reachable) {
+        if (status.state !== 'running') setStatus({ state: 'running' });
         return;
       }
-      if (status.state === 'starting') {
-        if (await controlReachable()) {
-          setStatus({ state: 'running' });
-          return;
-        }
-        if (Date.now() - startedAt > STARTING_DEADLINE_MS) {
-          setStatus({ state: 'stopped', reason: '启动超时（control API 始终不可达）' });
-        }
+
+      if (status.state === 'running') {
+        setStatus({ state: 'stopped', reason: 'control API 不可达' });
+        return;
+      }
+
+      if (status.state === 'starting' && Date.now() - startedAt > STARTING_DEADLINE_MS) {
+        // 超时且不可达：认定为起不来，终止子进程树，不把它留成假死状态。
+        logWarn(`[sync-daemon] 启动超时（${STARTING_DEADLINE_MS} ms 内 control API 始终不可达），强制终止子进程`);
+        const proc = child;
+        expectAlive = false;
+        setStatus({ state: 'stopped', reason: '启动超时（control API 始终不可达）' });
+        if (proc) killTree(proc);
       }
     })().catch((err) => logWarn(`[sync-daemon] 状态轮询异常：${describeError(err)}`));
   }, POLL_INTERVAL_MS);
@@ -405,7 +458,7 @@ function killTree(proc: ChildProcess): void {
  * 停止 daemon（幂等）。先 `POST /local/quit` 优雅退出，超时后杀进程树。
  * 停完后状态：配置 enabled=true → `stopped`，否则 `disabled`。
  */
-export async function stopSyncDaemon(): Promise<void> {
+async function stopSyncDaemonInner(): Promise<void> {
   stopPolling();
   expectAlive = false;
 
@@ -431,25 +484,34 @@ export async function stopSyncDaemon(): Promise<void> {
   }
 
   await waitForExit(proc, STOP_DEADLINE_MS);
-  if (proc.exitCode === null && !proc.killed) {
-    logWarn(`[sync-daemon] 优雅退出超时，强制终止进程树（pid=${proc.pid ?? 'unknown'}）`);
+  if (proc.exitCode === null && proc.signalCode === null) {
+    logWarn(`[sync-daemon] 优雅停止未在 ${STOP_DEADLINE_MS} ms 内退出，强制终止进程树（pid=${proc.pid ?? 'unknown'}）`);
     killTree(proc);
     await waitForExit(proc, 3_000);
   }
-  logInfo(`[sync-daemon] daemon 已停止（code=${proc.exitCode ?? 'null'}）`);
+  logInfo(`[sync-daemon] daemon 已停止（code=${proc.exitCode ?? 'null'} signal=${proc.signalCode ?? 'null'}）`);
 
   const loaded = await loadSyncConfig();
   setStatus(loaded?.enabled ? { state: 'stopped', reason: '已停用' } : { state: 'disabled' });
+}
+
+/** 停止 daemon（幂等、串行）：退出链 / 设置窗口 / 应用链路统一入口。 */
+export function stopSyncDaemon(): Promise<void> {
+  return serialize(() => stopSyncDaemonInner());
 }
 
 /**
  * 拉起 daemon 子进程（前提：配置已写好且 enabled=true）。
  * 失败不抛出：只记日志 + 置 `stopped`（FR-301-016）。
  */
-export async function startSyncDaemon(opts: SyncRuntimeOptions): Promise<void> {
+async function startSyncDaemonInner(opts: SyncRuntimeOptions): Promise<void> {
+  if (shuttingDown) {
+    logWarn('[sync-daemon] 应用正在退出，拒绝启动 daemon');
+    return;
+  }
   if (childAlive()) {
     logWarn('[sync-daemon] 已有 daemon 在运行，先停止');
-    await stopSyncDaemon();
+    await stopSyncDaemonInner();
   }
 
   const loaded = await loadSyncConfig();
@@ -479,6 +541,8 @@ export async function startSyncDaemon(opts: SyncRuntimeOptions): Promise<void> {
   }
 
   logInfo(`[sync-daemon] 拉起子进程：${process.execPath} ${daemonBin} run --config ${CONFIG_PATH}`);
+  // 清掉上一代的 control 凭据：否则新代际在自写凭据前可能被判为「可达」而误绿（代际校验）。
+  await unlink(CONTROL_FILE).catch(() => undefined);
   const proc = spawn(process.execPath, [daemonBin, 'run', '--config', CONFIG_PATH], {
     env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -504,13 +568,21 @@ export async function startSyncDaemon(opts: SyncRuntimeOptions): Promise<void> {
   });
   proc.on('error', (err) => {
     logWarn(`[sync-daemon] 子进程拉起失败：${describeError(err)}`);
-    if (child === proc) child = null;
+    if (child !== proc) return; // 旧代际：不得影响新代际的轮询与状态
+    child = null;
+    expectAlive = false;
     stopPolling();
     setStatus({ state: 'stopped', reason: `拉起失败：${describeError(err).split('\n')[0]}` });
   });
   proc.on('exit', (code, signal) => {
     const expected = expectAlive;
-    if (child === proc) child = null;
+    if (child !== proc) {
+      // 旧代际退出（已被新一代取代）：不得清掉新一代的轮询定时器（评审 Minor-8）。
+      logInfo(`[sync-daemon] 旧代际 daemon 退出（code=${code ?? 'null'} signal=${signal ?? 'null'}）`);
+      return;
+    }
+    child = null;
+    expectAlive = false;
     stopPolling();
     if (expected) {
       logWarn(`[sync-daemon] daemon 意外退出：code=${code ?? 'null'} signal=${signal ?? 'null'}`);
@@ -521,6 +593,11 @@ export async function startSyncDaemon(opts: SyncRuntimeOptions): Promise<void> {
   startPolling();
 }
 
+/** 拉起 daemon（串行）。失败不抛出：只记日志 + 置 `stopped`（FR-301-016）。 */
+export function startSyncDaemon(opts: SyncRuntimeOptions): Promise<void> {
+  return serialize(() => startSyncDaemonInner(opts));
+}
+
 // ---------------------------------------------------------------------------
 // 对外门面（设置窗口 IPC / boot 编排）
 // ---------------------------------------------------------------------------
@@ -529,16 +606,18 @@ export async function startSyncDaemon(opts: SyncRuntimeOptions): Promise<void> {
  * 「应用」按钮全链路：校验 → 原子写 → 停旧 → 按 enabled（重）启动。
  * 校验失败抛 Error（可读消息）；daemon 启动失败不抛（置红 + 日志）。
  */
-export async function applySyncConfig(settings: SyncDaemonSettings, opts: SyncRuntimeOptions): Promise<void> {
-  await saveSyncConfig(settings, opts); // 校验在这里发生
-  if (childAlive() || status.state === 'starting') {
-    await stopSyncDaemon();
-  }
-  if (settings.enabled) {
-    await startSyncDaemon(opts);
-  } else {
-    setStatus({ state: 'disabled' });
-  }
+export function applySyncConfig(settings: SyncDaemonSettings, opts: SyncRuntimeOptions): Promise<void> {
+  return serialize(async () => {
+    await saveSyncConfig(settings, opts); // 校验在这里发生
+    if (childAlive() || status.state === 'starting') {
+      await stopSyncDaemonInner();
+    }
+    if (settings.enabled) {
+      await startSyncDaemonInner(opts);
+    } else {
+      setStatus({ state: 'disabled' });
+    }
+  });
 }
 
 /** boot 就绪后调用：配置 enabled=true 才启动；缺失/损坏/禁用一律静默跳过（只记日志）。 */

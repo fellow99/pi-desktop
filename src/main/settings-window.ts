@@ -2,7 +2,7 @@
  * 设置窗口（module 301-sync-daemon）。
  *
  * 形态（plan §3.1 D5 / FR-301-004~005）：
- *   - 原生 HTML/CSS/JS（`resources/settings/**`，随包 extraResource 分发，`loadFile` 加载），
+ *   - 原生 HTML/CSS/JS（`resources/settings` 目录，随包 extraResource 分发，`loadFile` 加载），
  *     不引入构建链/框架；多 tabs 骨架 + 「中枢服务」tab；
  *   - 安全参数与主窗口同级：`sandbox: true` + `contextIsolation: true` + `nodeIntegration: false`，
  *     独立最小 preload（`preload-settings.js`，只对 file: 来源暴露桥）；
@@ -16,6 +16,7 @@
 
 import { app, BrowserWindow, ipcMain } from 'electron';
 import { existsSync } from 'node:fs';
+import { hostname } from 'node:os';
 import { isAbsolute, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -36,7 +37,7 @@ const CHANNEL_STATUS = 'pi-desktop:settings:sync:status';
 /** 窗口打开期间的状态推送周期（FR-301-022：≤3s）。 */
 const PUSH_INTERVAL_MS = 3_000;
 
-const DEFAULT_HOST_NAME = `${process.platform === 'win32' ? 'win' : process.platform}-pi-desktop`;
+const DEFAULT_HOST_NAME = hostname() || 'pi-desktop';
 
 let settingsWindow: BrowserWindow | null = null;
 let pushTimer: NodeJS.Timeout | null = null;
@@ -89,7 +90,7 @@ function stopPushing(): void {
 function settingsHtmlPath(): string {
   const file = join(settingsRoot(), 'index.html');
   if (!existsSync(file)) {
-    logWarn(`[settings] 设置页缺失：${file}（extraResource 未带 resources/settings/**？）`);
+    logWarn(`[settings] 设置页缺失：${file}（extraResource 未带 resources/settings 目录？）`);
   }
   return file;
 }
@@ -152,6 +153,15 @@ export function openSettingsWindow(): void {
   startPushing();
 }
 
+/** IPC 来源校验（104 纪律的纵深防御）：只接受设置页自身的 frame。 */
+function assertSettingsSender(event: Electron.IpcMainInvokeEvent): void {
+  const url = event.senderFrame?.url ?? '';
+  if (!isAllowedNavigation(url, settingsRoot())) {
+    logWarn(`[settings] 已拒绝来源不明的 IPC 调用：${url || '(unknown)'}`);
+    throw new Error('拒绝：非法调用来源');
+  }
+}
+
 /**
  * 注册设置窗口 IPC（app ready 后调用一次）。
  * `getRuntime` 由入口提供（内嵌 pi-web 就绪后才非 null）——依赖注入，避免反向 import index.ts。
@@ -160,7 +170,8 @@ export function registerSettingsIpc(getRuntime: () => SyncRuntimeOptions | null)
   if (ipcRegistered) return;
   ipcRegistered = true;
 
-  ipcMain.handle(CHANNEL_GET, async (): Promise<{ settings: SyncDaemonSettings; status: SyncStatus }> => {
+  ipcMain.handle(CHANNEL_GET, async (event): Promise<{ settings: SyncDaemonSettings; status: SyncStatus }> => {
+    assertSettingsSender(event);
     const loaded = await loadSyncConfig();
     const settings: SyncDaemonSettings = loaded
       ? loaded.settings
@@ -168,7 +179,8 @@ export function registerSettingsIpc(getRuntime: () => SyncRuntimeOptions | null)
     return { settings, status: getSyncStatus() };
   });
 
-  ipcMain.handle(CHANNEL_APPLY, async (_event, payload: unknown): Promise<{ ok: true }> => {
+  ipcMain.handle(CHANNEL_APPLY, async (event, payload: unknown): Promise<{ ok: true }> => {
+    assertSettingsSender(event);
     const p = payload as Partial<SyncDaemonSettings> | undefined;
     if (!p || typeof p.enabled !== 'boolean' || typeof p.hubUrl !== 'string' || typeof p.hostName !== 'string' || typeof p.hubToken !== 'string') {
       throw new Error('设置数据格式不正确，请重试');

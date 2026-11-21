@@ -11,7 +11,7 @@ import { setupNotifications } from './notifications';
 import { hasRecentActivity } from './session-watch';
 import { openSettingsWindow, registerSettingsIpc } from './settings-window';
 import { loadSettings } from './settings';
-import { isSyncDaemonActive, startSyncDaemonIfEnabled, stopSyncDaemon } from './sync-daemon';
+import { isSyncDaemonActive, markSyncDaemonShuttingDown, startSyncDaemonIfEnabled, stopSyncDaemon } from './sync-daemon';
 import { createTray, destroyTray, refreshTrayMenu } from './tray';
 import { checkForUpdates, openDownloadPage } from './update-check';
 import { createMainWindow, getMainWindow, loadPiWebUi, registerShellIpc, setStageOnWindow } from './windows';
@@ -52,7 +52,8 @@ const runtime: Runtime = {
 
 function showMainWindow(): void {
   const win = getMainWindow();
-  if (!win) return;
+  // 已销毁（301：主窗口关掉但设置窗口仍在时可达）：不得再调窗口方法，否则抛 "Object has been destroyed"。
+  if (!win || win.isDestroyed()) return;
   if (win.isMinimized()) win.restore();
   if (!win.isVisible()) win.show();
   win.focus();
@@ -322,6 +323,9 @@ if (started) {
 
       runtime.quitting = true;
       event.preventDefault();
+      // 301：先关闸门，此后任何（重）启动请求（含设置窗口的「应用」）均不得再 spawn，
+      // 否则退出链完成后再拉起会留下 detached 孤儿进程（FR-301-018）。
+      markSyncDaemonShuttingDown();
       logInfo('开始优雅退出（停止同步守护 → 关闭服务端 → 停止会话尾随 → 退出）');
       Promise.resolve()
         .then(async () => {

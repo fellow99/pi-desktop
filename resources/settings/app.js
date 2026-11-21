@@ -84,6 +84,16 @@ function showMsg(text, kind) {
   }
 }
 
+/**
+ * 剥掉 Electron 给 invoke 错误包上的前缀：
+ *   "Error invoking remote method 'pi-desktop:settings:sync:apply': Error: 地址不合法"
+ * → "地址不合法"（主进程侧的消息本身就已可读，不应让用户看见 IPC 内部细节）。
+ */
+function readableError(err) {
+  const raw = err && err.message ? err.message : String(err);
+  return raw.replace(/^Error invoking remote method '[^']*':\s*(?:Error:\s*)?/, '');
+}
+
 applyBtn.addEventListener('click', async () => {
   applyBtn.disabled = true;
   showMsg('正在应用…', '');
@@ -94,7 +104,7 @@ applyBtn.addEventListener('click', async () => {
     fillSettings(fresh.settings);
     renderStatus(fresh.status);
   } catch (err) {
-    showMsg(err && err.message ? err.message : String(err), 'err');
+    showMsg(readableError(err), 'err');
   } finally {
     applyBtn.disabled = false;
   }
@@ -109,12 +119,17 @@ toggleToken.addEventListener('click', () => {
 
 /* ---------------- 初始化：回填 + 状态订阅 ---------------- */
 window.addEventListener('load', async () => {
+  // preload 未生效（非 file: 来源或加载失败）时 api 为 undefined：直接提示，不让异常冒到未捕获。
+  if (!api) {
+    showMsg('设置桥不可用（preload 未加载）', 'err');
+    return;
+  }
   try {
     const data = await api.get();
     fillSettings(data.settings);
     renderStatus(data.status);
   } catch (err) {
-    showMsg(`读取配置失败：${err && err.message ? err.message : String(err)}`, 'err');
+    showMsg(`读取配置失败：${readableError(err)}`, 'err');
   }
   // 状态订阅：页面卸载时解绑（FR-301-022：不泄漏句柄）
   unsubStatus = api.onStatus((status) => renderStatus(status));
