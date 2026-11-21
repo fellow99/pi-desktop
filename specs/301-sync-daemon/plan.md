@@ -53,7 +53,9 @@ daemon 的 `PluginManager` 从其自身包目录向上找 `node_modules/@pi-agen
   （✅ `config.ts` `loadConfig` 只校验必填字段，不拒未知字段）。`~/.pi-desktop/sync-daemon.json`。
 - **D5：设置窗口用 extraResource 静态目录 + 独立 preload**
   沿用 `tray.ts iconPath()` 的双态解析（dev：`app.getAppPath()/resources`；打包：`process.resourcesPath`）。
-  forge `extraResource` 增加 `'resources/settings/**'`；vite 增加第二个 preload 入口
+  forge `extraResource` 增加 **目录条目** `'resources/settings'`（**不能写 `resources/settings/**`**：
+  `@electron/packager@18.4.4` 的 `copyExtraResources()` 是 `fs.copy(src, resolve(staging, resourcesDir, basename(src)))`，
+  **不做 glob 展开**，传 `**` 会以字面路径 `resources/settings/**` 去 copy → ENOENT 使 `electron-forge make` 失败）；vite 增加第二个 preload 入口
   `src/preload/settings.ts`（产物 `.vite/build/preload-settings.js`）。
 - **D6：不迁移、不读写 `~/.pi-agent-hub/`**（本机独立 daemon 数据），`pluginRoot` 隔离到
   `~/.pi-desktop/sync-daemon`（control 文件 / 日志 / 插件工作区互不干扰）。
@@ -82,6 +84,9 @@ daemon 的 `PluginManager` 从其自身包目录向上找 `node_modules/@pi-agen
 | D12 | `running` 文案从「已连接」改为「**运行中**」 | 与 D8 的进程级语义一致，避免把「进程在跑」说成「已连接」 |
 | D13 | 保留既有未提交实现作为本轮基座，不重写 | 逐条核对与需求一致（托盘/设置窗口/四字段/状态灯/配置落盘/启动编排/退出链） |
 | D14 | 文档一致性只修本需求造成的口径漂移（README 301 表行、108 托盘描述、STRUCTURE、工程规划 §5.3） | `AGENTS.md` 的 `npm run check` 不存在属既有缺陷，改法有分歧，仅在交接文档记录 |
+| D15 | `forge.config.ts` 的 `extraResource` 用**目录条目** `resources/settings`，不用 `/**` glob | `@electron/packager@18.4.4` 不展开 glob（`copyExtraResources` → `fs.copy(src, resolve(staging, resourcesDir, basename(src)))`），`**` 会 ENOENT 使 `electron-forge make` 失败（评审 Critical-1） |
+| D16 | start/stop/apply 统一进**串行队列**，并加 `shuttingDown` 退出闸门；启动前 `unlink` control 文件做代际隔离 | 并发 `await` 让出点会各自 spawn 出双 daemon；「点应用后立刻退出」会放出 detached 孤儿（评审 Important-3） |
+| D17 | 优雅停止窗口降为 1.5s，超时必须强杀进程树 | 上游 `Daemon.stop()` 不清理 30s `setInterval`（`daemon.ts:114`，无 unref/exit），不能假设其自行退出（评审 Important-5）。**实测**：本机 `/local/quit` 后约 1.8s 以 code=1 退出、无残留；强杀仍保留为兜底 |
 
 ## 4. 数据模型
 
@@ -142,11 +147,12 @@ export type SyncStatus =
   | { state: 'stopped'; reason?: string };
 
 export function loadSyncConfig(): Promise<{ enabled: boolean; settings: SyncDaemonSettings; raw: SyncDaemonFile } | null>;
-export function saveSyncConfig(settings: SyncDaemonSettings): Promise<void>;   // 校验 + 原子写（含运行时 options 刷新由调用方负责）
+export function saveSyncConfig(settings: SyncDaemonSettings, opts: SyncRuntimeOptions): Promise<void>;   // 校验 + 原子写（含运行时 options 落盘）
 export function startSyncDaemon(opts: { server: string; agentDir: string; password: string }): Promise<void>; // 写 options → spawn
 export function stopSyncDaemon(): Promise<void>;
 export function applySyncConfig(settings: SyncDaemonSettings, opts: { server: string; agentDir: string; password: string }): Promise<void>; // 应用按钮全链路
 export function getSyncStatus(): SyncStatus;
+export function markSyncDaemonShuttingDown(): void;   // 退出闸门：置位后一律不再 spawn
 export function onSyncStatusChange(listener: (s: SyncStatus) => void): () => void;
 ```
 
@@ -183,7 +189,7 @@ IPC（preload `window.piDesktopSettings`）：
 | `resources/settings/index.html` / `app.js` | **新增**：原生 HTML/CSS/JS（多 tabs + 中枢服务表单）；CSS 以 `<style>` **内联**在 `index.html`（不另建 `style.css`：设置页只加载本地静态文件，内联可减少 `file://` 下的加载失败面） |
 | `src/main/tray.ts` | **改**：移除 `agentDirItem`/`hasAgentDir`/`openSessionDir`；新增「设置」项 |
 | `src/main/index.ts` | **改**：`trayActions()` 换 `openSettings`；`boot()` 插入 daemon 启动；退出链 stop |
-| `forge.config.ts` | **改**：`RunAsNode: true`；`extraResource` + `'resources/settings/**'`；vite build + settings preload 入口 |
+| `forge.config.ts` | **改**：`RunAsNode: true`；`extraResource` + `'resources/settings'`（目录条目，非 glob）；vite build + settings preload 入口 |
 | `package.json` | **改**：dependencies + `@pi-agent-hub/sync-daemon@0.1.0`、`@pi-agent-hub/sync-plugin-pi-web@0.1.0`（固定版本） |
 | `specs/README.md` / `SPECS_CHECKLIST.md` | **改**：3XX 段定义（跨端需求模块）+ M 行 |
 
