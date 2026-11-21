@@ -13,8 +13,8 @@
 
 | 包 | 版本 | 说明 |
 |---|---|---|
-| `@pi-agent-hub/sync-daemon` | `0.1.0`（固定） | daemon CLI：`dist/main.js run [--config <path>] [--once]` |
-| `@pi-agent-hub/sync-plugin-pi-web` | `0.1.0`（固定） | 插件（kind=`pi-web`）：bin `dist/main.js`，JSON-RPC/stdio |
+| `@pi-agent-hub/sync-daemon` | `0.1.1`（固定） | daemon CLI：`dist/main.js run [--config <path>] [--once]` |
+| `@pi-agent-hub/sync-plugin-pi-web` | `0.1.1`（固定） | 插件（kind=`pi-web`）：bin `dist/main.js`，JSON-RPC/stdio |
 
 两包 `engines.node >= 22.19`，`type: module`，均 publish 于 npm registry（✅ 已核实）。
 daemon 的 `PluginManager` 从其自身包目录向上找 `node_modules/@pi-agent-hub/sync-plugin-pi-web`
@@ -69,7 +69,7 @@ daemon 的 `PluginManager` 从其自身包目录向上找 `node_modules/@pi-agen
 
 | 结论 | 标记 |
 |---|---|
-| `@pi-agent-hub/sync-daemon@0.1.0` / `sync-plugin-pi-web@0.1.0` 已 publish（`npm view`） | ✅ |
+| `@pi-agent-hub/sync-daemon@0.1.1` / `sync-plugin-pi-web@0.1.1` 已 publish（`npm view`） | ✅ |
 | daemon CLI：`run [--config <path>] [--once]`（`main.ts`） | ✅ |
 | 插件 options：`server` / `agentDir`（默认 `~/.pi/agent`）/ `password`（Basic `pi:<pw>`）/ `cwd`（`plugin.ts`） | ✅ |
 | 插件 collect 读 `<agentDir>/sessions` 磁盘（与 pi-web 同源），deliver 走 pi-web HTTP API | ✅ |
@@ -217,7 +217,7 @@ IPC（preload `window.piDesktopSync`，仅内嵌 pi-web 源可用）：
 | `scripts/prepare-next.mjs` | **改**：新增阶段 1b —— 在 `next build` 前幂等应用 `patches/<pi-web-tag>/*.patch`，构建成功后回退 |
 | `scripts/patches.mjs` | **新增**：`apply` / `revert` / `status`（dev 态手工迭代补丁用；默认流程仍自动应用+回退） |
 | `patches/README.md` + `patches/v0.17.0/0001-sync-daemon-settings-tab.patch` | **新增**：补丁登记（P301-1）与补丁本体 |
-| `package.json` | **不动**：依赖仍为 `@pi-agent-hub/sync-daemon@0.1.0` / `sync-plugin-pi-web@0.1.0` |
+| `package.json` | **不动**：依赖仍为 `@pi-agent-hub/sync-daemon@0.1.1` / `sync-plugin-pi-web@0.1.1` |
 | `specs/README.md` / `SPECS_CHECKLIST.md` / `STRUCTURE.md` / `docs/工程规划.md` | **改**：108 托盘项、301 设置分区、补丁数 0→1 的口径同步 |
 
 ## 7. 风险与对策

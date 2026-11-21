@@ -3,7 +3,7 @@
 > 需求编号 `301-sync-daemon` · 涉及工程：父工程 / pi-desktop / pi-desktop-android / pi-desktop-hos / pi-desktop-ark
 > **本轮范围：仅 pi-desktop 实现**；android / hos / ark 三工程各建本编号目录记录「暂不实现」决策（各自 specs 内）。
 > 上游参照：`pi-agent-hub`（`docs/001-协议规范.md`、`docs/002-插件开发指南.md`、`deploy/README.md`；
-> `packages/sync-daemon`、`packages/sync-plugin-pi-web`，均以 npm 包 `@0.1.0` 发布）。
+> `packages/sync-daemon`、`packages/sync-plugin-pi-web`，均以 npm 包 `@0.1.1` 发布）。
 
 ## 1. 模块概述
 
@@ -26,8 +26,8 @@
 | 托盘菜单 | 移除「会话目录」项；**不设**「设置」项（设置入口统一到 pi-web 设置对话框） | 上游 pi-web UI 使用的 IPC `pi-desktop:open-session-dir` **保留不动** |
 | 中枢服务设置 | 在 **pi-web 设置对话框**末尾新增「中枢服务」分区（构建期补丁实现），内容与旧原生设置窗口一致（状态灯 / 地址 / 本端名称 / 本端令牌 / 是否启用 / 应用） | pi-web 其它分区的行为、顺序与样式 |
 | 配置持久化 | `~/.pi-desktop/sync-daemon.json`（结构参考 `~/.pi-agent-hub/sync-daemon.json`，顶层加 `enabled`） | 迁移既有 `~/.pi-agent-hub/sync-daemon.json`（不读不写） |
-| daemon 运行 | 以**子进程**方式拉起 npm 包 `@pi-agent-hub/sync-daemon@0.1.0` 的 CLI（`dist/main.js run --config`），`ELECTRON_RUN_AS_NODE=1` + `process.execPath`；pi-web 就绪后按 `enabled` 启动；应用按钮 / 退出时重启 / 停止 | 主进程内嵌 `Daemon` 类（弃，见 plan §3.1 D1） |
-| 插件对接 | 启用 `@pi-agent-hub/sync-plugin-pi-web@0.1.0`（npm 包随 pi-desktop 安装），options（server / agentDir / password）由壳按运行时状态自动注入 | 用户可编辑插件 options（本轮不暴露 UI） |
+| daemon 运行 | 以**子进程**方式拉起 npm 包 `@pi-agent-hub/sync-daemon@0.1.1` 的 CLI（`dist/main.js run --config`），`ELECTRON_RUN_AS_NODE=1` + `process.execPath`；pi-web 就绪后按 `enabled` 启动；应用按钮 / 退出时重启 / 停止 | 主进程内嵌 `Daemon` 类（弃，见 plan §3.1 D1） |
+| 插件对接 | 启用 `@pi-agent-hub/sync-plugin-pi-web@0.1.1`（npm 包随 pi-desktop 安装），options（server / agentDir / password）由壳按运行时状态自动注入 | 用户可编辑插件 options（本轮不暴露 UI） |
 | 状态反馈 | 进程级红绿状态灯：绿 = daemon 存活且 control API 可达；红 = 未启用 / 启动失败 / 进程退出 | hub SSE 连接级状态（daemon 未对外暴露，⬜ 后续） |
 | 其它版别 | android / hos / ark 占位记录「暂不实现」 | 三端任何代码改动 |
 
@@ -90,8 +90,8 @@
 
 ### 3.4 daemon 生命周期
 
-- **FR-301-013**：pi-desktop 依赖 MUST 包含 `@pi-agent-hub/sync-daemon@0.1.0` 与
-  `@pi-agent-hub/sync-plugin-pi-web@0.1.0`（npm registry，固定版本）。
+- **FR-301-013**：pi-desktop 依赖 MUST 包含 `@pi-agent-hub/sync-daemon@0.1.1` 与
+  `@pi-agent-hub/sync-plugin-pi-web@0.1.1`（npm registry，固定版本）。
 - **FR-301-014**：pi-web 就绪（`boot()` 完成、`setStage('就绪')` 之后）时，MUST 读取配置，
   若 `enabled=true` 则按 FR-301-010 注入运行时 options 后拉起 daemon 子进程；
   `enabled=false` 或配置缺失/损坏时 MUST NOT 启动。
@@ -199,7 +199,7 @@ Given daemon 运行中 → When 退出应用 → Then 无残留 `pi-agent-hub-sy
 
 ## 8. 依赖
 
-- 上游 npm 包：`@pi-agent-hub/sync-daemon@0.1.0`、`@pi-agent-hub/sync-plugin-pi-web@0.1.0`
+- 上游 npm 包：`@pi-agent-hub/sync-daemon@0.1.1`、`@pi-agent-hub/sync-plugin-pi-web@0.1.1`
   （其传递依赖 protocol / pi-session / sync-plugin-sdk 一并由 npm 安装）。
 - 本工程模块：`108-tray`（菜单）、`103-window`/`104-preload`（窗口/桥模式与来源校验）、
   `111-app-entry`（boot 编排插入点）、`112-runtime-config`（配置读写风格）、

@@ -26,8 +26,8 @@
     "premake": "node scripts/prepare-next.mjs && node scripts/collect-pi.mjs"
   },
   "dependencies": {
-    "@pi-agent-hub/sync-daemon": "0.1.0",
-    "@pi-agent-hub/sync-plugin-pi-web": "0.1.0",
+    "@pi-agent-hub/sync-daemon": "0.1.1",
+    "@pi-agent-hub/sync-plugin-pi-web": "0.1.1",
     "electron-squirrel-startup": "^1.0.1"
   },
   "devDependencies": {
