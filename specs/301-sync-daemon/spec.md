@@ -23,8 +23,8 @@
 
 | 项 | 范围内 | 范围外 |
 |---|---|---|
-| 托盘菜单 | 移除「会话目录」项；新增「设置」项（打开设置窗口） | 上游 pi-web UI 使用的 IPC `pi-desktop:open-session-dir` **保留不动** |
-| 设置窗口 | 新增原生 HTML/CSS/JS 窗口：多 tabs 骨架 + 「中枢服务」tab（状态灯 / 地址 / 本端名称 / 本端令牌 / 是否启用 / 应用） | 其它 tab 内容（本轮仅占位骨架，不实现具体功能） |
+| 托盘菜单 | 移除「会话目录」项；**不设**「设置」项（设置入口统一到 pi-web 设置对话框） | 上游 pi-web UI 使用的 IPC `pi-desktop:open-session-dir` **保留不动** |
+| 中枢服务设置 | 在 **pi-web 设置对话框**末尾新增「中枢服务」分区（构建期补丁实现），内容与旧原生设置窗口一致（状态灯 / 地址 / 本端名称 / 本端令牌 / 是否启用 / 应用） | pi-web 其它分区的行为、顺序与样式 |
 | 配置持久化 | `~/.pi-desktop/sync-daemon.json`（结构参考 `~/.pi-agent-hub/sync-daemon.json`，顶层加 `enabled`） | 迁移既有 `~/.pi-agent-hub/sync-daemon.json`（不读不写） |
 | daemon 运行 | 以**子进程**方式拉起 npm 包 `@pi-agent-hub/sync-daemon@0.1.0` 的 CLI（`dist/main.js run --config`），`ELECTRON_RUN_AS_NODE=1` + `process.execPath`；pi-web 就绪后按 `enabled` 启动；应用按钮 / 退出时重启 / 停止 | 主进程内嵌 `Daemon` 类（弃，见 plan §3.1 D1） |
 | 插件对接 | 启用 `@pi-agent-hub/sync-plugin-pi-web@0.1.0`（npm 包随 pi-desktop 安装），options（server / agentDir / password）由壳按运行时状态自动注入 | 用户可编辑插件 options（本轮不暴露 UI） |
@@ -33,8 +33,8 @@
 
 ## 2. 用户故事
 
-1. 作为桌面用户，我在托盘右键菜单点「设置」，能看到设置窗口，而不必再翻命令行配置 daemon。
-2. 作为桌面用户，我在「中枢服务」tab 填入中枢地址 / 本端名称 / 本端令牌、打开「是否启用」，
+1. 作为桌面用户，我在 pi-web 侧栏打开「设置」，切到「中枢服务」分区，就能配置同步，不必再翻命令行。
+2. 作为桌面用户，我在「中枢服务」分区填入中枢地址 / 本端名称 / 本端令牌、打开「是否启用」，
    点「应用」，pi-desktop 立即按新配置（重）启动 sync-daemon，状态灯变绿即表示已接管。
 3. 作为桌面用户，我关掉「是否启用」并「应用」，daemon 被停止，状态灯变红。
 4. 作为桌面用户，pi-desktop 启动完成后，若配置中 `enabled=true` 且配置完整，sync-daemon 自动启动，
@@ -48,21 +48,28 @@
 ### 3.1 托盘菜单变更
 
 - **FR-301-001**：托盘右键菜单 MUST 移除「会话目录」菜单项（及其 `hasAgentDir` 依赖逻辑）。
-- **FR-301-002**：托盘右键菜单 MUST 新增「设置」菜单项；点击 MUST 打开设置窗口；
-  若设置窗口已打开，MUST 聚焦/显示已有窗口而非重复创建。
+- **FR-301-002**：托盘右键菜单 MUST NOT 再提供「设置」菜单项；菜单只保留
+  `显示主窗口 / 打开日志 / 检查更新… / 退出`（外加禁用的产品名标题与分隔线）。
 - **FR-301-003**：渲染层 IPC `pi-desktop:open-session-dir`（preload `openSessionDir`）MUST 保留（上游 pi-web UI 可能调用）。
 
-### 3.2 设置窗口
+### 3.2 中枢服务设置分区（pi-web 设置对话框）
 
-- **FR-301-004**：设置窗口 MUST 用原生 HTML / CSS / JS 实现（不引入构建链 / 框架），
-  文件随包分发（extraResource），`loadFile` 加载；窗口安全参数 MUST 与主窗口同级
-  （`sandbox: true` + `contextIsolation: true` + `nodeIntegration: false`，独立 preload）。
-- **FR-301-005**：设置窗口 MUST 实现多 tabs 切换骨架；本轮「中枢服务」为唯一有内容的 tab，
-  新增 tab 只需增改静态 HTML/CSS/JS。
-- **FR-301-006**：「中枢服务」tab MUST 包含：连接状态（红/绿状态灯）、中枢服务地址（输入框）、
+- **FR-301-004**：中枢服务设置 MUST 以 **pi-web 设置对话框的一个分区**呈现，MUST NOT 再使用独立 BrowserWindow /
+  原生静态页；排序 MUST 位于 `MCP` 之后（`常规 / 模型 / 技能 / Agents / 插件 / MCP / 中枢服务`）。
+- **FR-301-004a**：该分区 MUST 通过**构建期幂等补丁**实现（`patches/<pi-web-tag>/`），
+  在 `prepare-next` 的 `next build` 之前应用、构建完成后回退；`../pi-web` 在工作树层面 MUST 保持 pristine
+  （除构建窗口期外 `git status --porcelain` 为空）。补丁冲突 MUST 硬失败，MUST NOT 使用 `--3way` 或覆盖用户改动。
+- **FR-301-004b**：该分区依赖的壳能力 MUST 经 `preload` 暴露为独立命名空间 `window.piDesktopSync`
+  （仅 `get` / `apply`），MUST NOT 复用或扩大既有 `window.piDesktop` 壳动作桥；主进程 MUST 对每次 IPC
+  调用校验 `senderFrame` 属于当前内嵌 pi-web 源（`http://127.0.0.1:<port>`），非本应用源一律拒绝并记 WARN。
+- **FR-301-004c**：若 `window.piDesktopSync` 不存在（补丁版 pi-web 被单独在浏览器打开等），该分区 MUST NOT 显示，
+  MUST NOT 呈现点了即报错的假入口。
+- **FR-301-005**：分区 MUST 复用 pi-web 既有的 Settings 分区骨架（同一 `sections` 数组 → tab、手机端分区首页、
+  键盘/焦点与 Escape 行为自动一致）；MUST NOT 自建第二套设置对话框。
+- **FR-301-006**：「中枢服务」分区 MUST 包含：连接状态（红/绿状态灯 + 文案）、中枢服务地址（输入框）、
   本端名称（输入框）、本端令牌（输入框）、是否启用（switch）、`应用` 按钮。
-- **FR-301-007**：窗口打开时 MUST 回填当前 `~/.pi-desktop/sync-daemon.json` 中的表单字段；
-  本端令牌输入框 SHOULD 以密码形态展示并提供显示切换。
+- **FR-301-007**：分区挂载时 MUST 回填当前 `~/.pi-desktop/sync-daemon.json` 中的表单字段；
+  本端令牌输入框 SHOULD 以密码形态展示并提供显示切换；分区文案 MUST 随 pi-web 语言（zh-CN / en / zh-TW）切换。
 
 ### 3.3 配置持久化
 
@@ -118,8 +125,8 @@
 - **FR-301-021c**：探活 MUST 与状态解耦——只要子进程存活就持续探活（2.5s）；
   `starting` 超 20s 不可达虽置红，但**不视为终态**，其后 control 可达 MUST 自动回绿；
   超时时 SHOULD 终止该子进程树，避免「假红 + 实际在同步」的假死状态。
-- **FR-301-022**：设置窗口打开期间，主进程 SHOULD 以短周期（≤3s）轮询 daemon 状态并推送窗口；
-  窗口 MUST NOT 轮询时泄漏句柄（关闭即停）。
+- **FR-301-022**：中枢服务分区**挂载期间** SHOULD 以短周期（≤3s）轮询 daemon 状态并刷新界面；
+  分区卸载或页面卸载时 MUST 停止轮询，不泄漏定时器。
 
 ### 3.6 其它版别（占位）
 
@@ -135,16 +142,16 @@
 | daemon 子进程 | `electron.exe --(RUN_AS_NODE) dist/main.js run --config <path>`；插件再经其拉一层 node 子进程 |
 | control 凭据 | `~/.pi-desktop/sync-daemon/daemon-control.json`（daemon 自写，0600）`{port, token}` |
 | 状态 | `disabled` / `starting` / `running`(绿) / `stopped`(红，含失败原因) |
-| 设置窗口 | 独立 BrowserWindow + `resources/settings/index.html`（extraResource）+ 独立 preload |
+| 设置分区 | pi-web `SettingsPanel` 的 `sync` 分区（补丁新增 `components/SyncConfig.tsx`）；桥 `window.piDesktopSync` 仅 `get` / `apply` |
 
 ## 5. 验收场景
 
-### 场景 S1：托盘「设置」入口
-Given 应用已启动就绪 → When 托盘右键点「设置」 → Then 设置窗口打开；「会话目录」项不再出现；
-再点一次「设置」只聚焦已有窗口。
+### 场景 S1：设置入口（pi-web）
+Given 应用已启动就绪 → When 打开 pi-web 侧栏「设置」 → Then 分区列表最后一项为「中枢服务」；
+切到该分区可见状态灯与四字段；托盘右键菜单不再出现「会话目录」与「设置」。
 
 ### 场景 S2：配置回填与保存
-Given 已有 `~/.pi-desktop/sync-daemon.json`（enabled=true，有地址/名称/令牌） → When 打开「中枢服务」tab
+Given 已有 `~/.pi-desktop/sync-daemon.json`（enabled=true，有地址/名称/令牌） → When 打开设置 ›「中枢服务」
 → Then 四字段回填、状态灯显示当前真实状态；改动后点「应用」 → Then 文件原子更新（结构兼容 SyncDaemonConfig）、
 daemon 按新配置重启、状态灯随实际状态更新。
 
@@ -165,7 +172,8 @@ Given daemon 运行中 → When 退出应用 → Then 无残留 `pi-agent-hub-sy
 
 ## 6. 非功能需求
 
-- 安全：令牌仅落盘于 0600 文件；日志 MUST NOT 回显令牌/密码全文；设置窗口无 nodeIntegration。
+- 安全：令牌仅落盘于 0600 文件；日志 MUST NOT 回显令牌/密码全文；设置分区沿用 pi-web 页面安全模型
+  （无 nodeIntegration），壳能力只经 `piDesktopSync`（`get`/`apply`）并做 `senderFrame` 校验。
 - 安全（取舍，plan §3.3 D9）：`~/.pi-desktop/sync-daemon.json` 的**明文令牌**属**有意接受**的取舍——
   上游 daemon 的 `loadConfig` 只认明文 `hub.token`，加密必然要再落一份明文，收益为零；
   Windows 上 `chmod 0o600` 实为 no-op，实际保护来自用户目录 NTFS ACL。加密存储（safeStorage /
@@ -173,7 +181,7 @@ Given daemon 运行中 → When 退出应用 → Then 无残留 `pi-agent-hub-sy
 - 稳健：daemon 崩溃可经再次「应用」恢复；`~/.pi-desktop/sync-daemon.json` 损坏（非 JSON）时
   按「配置缺失」处理（不启动 + 日志告警），MUST NOT 抛到主流程。
 - 性能：daemon 探活开销可忽（≤1 次/2.5s，读 control 文件 + 本机 HTTP）；
-  窗口状态推送 ≤1 次/3s，**仅设置窗口打开期间**。
+  状态刷新 ≤1 次/2.5s，**仅中枢服务分区挂载期间**。
 - 兼容性：dev（`npm start`）与打包态行为一致（RunAsNode fuse）。
 
 ## 7. 假设与约束
@@ -193,6 +201,7 @@ Given daemon 运行中 → When 退出应用 → Then 无残留 `pi-agent-hub-sy
 
 - 上游 npm 包：`@pi-agent-hub/sync-daemon@0.1.0`、`@pi-agent-hub/sync-plugin-pi-web@0.1.0`
   （其传递依赖 protocol / pi-session / sync-plugin-sdk 一并由 npm 安装）。
-- 本工程模块：`108-tray`（菜单）、`103-window`/`104-preload`（窗口/桥模式）、
-  `111-app-entry`（boot 编排插入点）、`112-runtime-config`（配置读写风格）。
+- 本工程模块：`108-tray`（菜单）、`103-window`/`104-preload`（窗口/桥模式与来源校验）、
+  `111-app-entry`（boot 编排插入点）、`112-runtime-config`（配置读写风格）、
+  `012-building-workflow`（构建期补丁的幂等应用/回退与往返校验）。
 - 测试环境：`pi-agent-hub/deploy/`（Docker Compose：hub-service + hub-console + nginx，对外 12380）。

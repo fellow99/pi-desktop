@@ -33,7 +33,7 @@ CLI / RPC / JSON / SDK 四种集成入口。`Pi Web` 是它的本地浏览器界
 > **非官方声明**：本工程非 Pi / Pi Web 团队构建，与上游作者无隶属关系，未获其背书。
 > `Pi`（MIT，[earendil-works/pi](https://github.com/earendil-works/pi)）与
 > `Pi Web`（MIT，[agegr/pi-web](https://github.com/agegr/pi-web)）均为上游开源项目，
-> 本工程只做**装配**，不 fork、不改上游源码（本版必需补丁 **0 条**，见规划 §7）。
+> 本工程只做**装配**，不 fork 产品逻辑（301 的同步设置分区为**构建期补丁 1 条**，见规划 §7）。
 
 ## 核心设计
 
@@ -303,7 +303,7 @@ pi-desktop/
 │   ├── settings.ts                 # 壳层设置（agentDirMode 等）读写
 │   ├── update-check.ts             # 检查更新（半自动）
 │   └── logger.ts                   # [pi-desktop] 统一日志 → <userData>/logs
-├── src/preload/index.ts            # 默认空实现（按需启用最小桥；数据面永不过 IPC）
+├── src/preload/index.ts            # file: 页暴露壳动作；应用 http 源另暴露 `piDesktopSync`（301 设置分区）
 ├── src/renderer/renderer.ts        # 壳层自有页面（loading / 降级页）驱动
 ├── index.html                      # 兜底 / loading 页（CSP: default-src 'self'）
 ├── resources/                      # icon.ico / icon.icns / icon.png / tray.png / trayTemplate.png
@@ -333,7 +333,7 @@ pi-desktop/
 | ✅ 已实现 | `src/main/**`（14 个模块）、`src/preload`、`src/renderer`、6 个构建/探针脚本、`resources/`（含品牌物料镜像）、`config/`、Forge + Vite + TS 配置、`.github/workflows/{ci,release}.yml`、`specs/`（`001`–`012` 已成对，`201` 待定）、`docs/` 四份文档 |
 | ✅ 已实测（Windows） | 打包态首屏、进程内宿主、品牌化（文案/Logo/图标/版本检测）、跨盘符默认布局启动、PTY、原生通知、Squirrel 安装→启动→卸载（详见 [docs/构建验证记录.md](docs/构建验证记录.md) 轮次 1 / 轮次 2） |
 | ⬜ 未实测 | macOS / Linux 全链路；`make` 的 dmg/deb/rpm 安装体验；P0-4 的「解压期内存曲线」；MCP / `git` / 搜索类工具的逐项实测；托盘与通知的**视觉**呈现（可编程判据之外） |
-| ⬜ 待落地（后续） | `extensions/`、`skills/`（壳专用扩展与技能，可选档）；`specs/003`–`011` 已生成规格但未做端到端取证的部分；`patches/` 目录（规划 §7 要求建立并写明「本版本为空」，目前仓库无该目录）；预置模板 `config/trust.json`（规划 §6.2 列出，当前只有 `settings.json` / `mcp.json`） |
+| ⬜ 待落地（后续） | `extensions/`、`skills/`（壳专用扩展与技能，可选档）；`specs/003`–`011` 已生成规格但未做端到端取证的部分；预置模板 `config/trust.json`（规划 §6.2 列出，当前只有 `settings.json` / `mcp.json`） |
 | ❌ 明确不做 | 深链 / 开机自启 / 全局快捷键 / 多窗口；代码签名 / 公证 / 静默更新；交叉打包 |
 
 注：本表是「README 快照」；文件是否齐备以仓库现状为准（`git status` / `ls`），
@@ -353,7 +353,7 @@ pi-desktop/
 ## 上游声明与许可
 
 - **本工程非官方**：由第三方（`fellow99`）独立实现，与 Pi / Pi Web 上游作者无隶属关系，未获其背书。
-- **不 fork、只装配**：本版必需补丁 **0 条**（逐条理由见规划 §7）；对上游只做幂等处理，从不覆盖用户改动。
+- **不 fork、只装配**：本版必需补丁 **1 条**（`P301-1`：pi-web 设置分区；逐条理由与「不需要补丁」清单见规划 §7）；对上游只做幂等处理，仅在构建窗口期应用、从不覆盖用户改动。
 - **上游许可**：[Pi](https://github.com/earendil-works/pi) MIT · [Pi Web](https://github.com/agegr/pi-web) MIT。
   随包分发的 `pi-dist.tar.gz` 内含上游产物，其许可与版权归上游所有；本工程代码为 MIT（见 [LICENSE](LICENSE)）。
 - **名称声明**：本工程名称含 `pi`，仅为说明被封装的上游项目；应用内「关于」页同样标注以上声明。

@@ -49,7 +49,7 @@
 | M-12 | `012-building-workflow`（构建工作流） | ✅ [spec.md](./012-building-workflow/spec.md) | ✅ [plan.md](./012-building-workflow/plan.md) | ✅ 成对 | 脚本 `scripts/*.mjs` + `forge.config.ts` + `vite.*.config.ts`；轮次 1 复核 prebuilds 裁剪**未丢文件** |
 | M-13 | `013-branding`（品牌化，**公共模块**） | ✅ [spec.md](./013-branding/spec.md) | ✅ [plan.md](./013-branding/plan.md) | ✅ 成对（+ [`test-cases.md`](./013-branding/test-cases.md) 含执行结果） | `FR-013-*` / `AC-*`；轮次 1 打包态端到端 **TC 16 PASS / 0 FAIL**（证据 `logs/20261013-0/`） |
 | M-14 | `201-plugin-runtime`（扩展投放，可选档） | ✅ [spec.md](./201-plugin-runtime/spec.md) | ✅ [plan.md](./201-plugin-runtime/plan.md) | ✅ 成对（Status Proposed） | 上游 UI 已内置 Plugins/Skills/MCP 管理（Q7）；规格已成对，**是否启用该档待产品决策** |
-| M-15 | `301-sync-daemon`（中枢服务同步，**跨端需求**） | ✅ [spec.md](./301-sync-daemon/spec.md) | ✅ [plan.md](./301-sync-daemon/plan.md) | ✅ 成对（+ `test-cases.md`） | 内嵌 `@pi-agent-hub/sync-daemon`（子进程）+ 托盘「设置」入口 + 原生设置窗口；实现落点 `src/main/sync-daemon.ts` + `src/main/settings-window.ts` + `resources/settings/`；android/hos/ark 各工程同名目录记录「暂不实现」 |
+| M-15 | `301-sync-daemon`（中枢服务同步，**跨端需求**） | ✅ [spec.md](./301-sync-daemon/spec.md) | ✅ [plan.md](./301-sync-daemon/plan.md) | ✅ 成对（+ `test-cases.md`） | 内嵌 `@pi-agent-hub/sync-daemon`（子进程）+ **pi-web 设置对话框「中枢服务」分区**（构建期补丁 `P301-1`）；实现落点 `src/main/sync-daemon.ts` + `src/main/sync-settings-ipc.ts` + `src/preload/index.ts`（`piDesktopSync`）+ `patches/v0.17.0/`；android/hos/ark 各工程同名目录记录「暂不实现」 |
 
 **模块级合计：15 / 15 成对 ✅（`011`–`013`、`101`–`104`、`108`–`113`、`201`、`301`）；`201` Status 为 Proposed，是否启用待决策。**
 

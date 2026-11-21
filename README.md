@@ -38,7 +38,8 @@ process, and the shell owns environment assembly, artifact bootstrap, lifecycle 
 > upstream authors and is not endorsed by them. `Pi` (MIT,
 > [earendil-works/pi](https://github.com/earendil-works/pi)) and `Pi Web` (MIT,
 > [agegr/pi-web](https://github.com/agegr/pi-web)) are upstream open-source projects; this project only
-> **assembles** them — no fork, no upstream source changes (**0 required patches**, see plan §7).
+> **assembles** them — no fork of product logic (**1 build-time patch** for the 301 sync settings
+> section, see plan §7).
 
 ## Core design
 
@@ -321,7 +322,7 @@ pi-desktop/
 │   ├── settings.ts                 # shell settings (agentDirMode, …) read/write
 │   ├── update-check.ts             # update check (semi-automatic)
 │   └── logger.ts                   # [pi-desktop] unified logging → <userData>/logs
-├── src/preload/index.ts            # empty by default (a minimal bridge can be enabled; the data path never uses IPC)
+├── src/preload/index.ts            # shell-action bridge for file: pages; `piDesktopSync` (get/apply) for the 301 settings section
 ├── src/renderer/renderer.ts        # drives the shell-owned pages (loading / fallback)
 ├── index.html                      # fallback / loading page (CSP: default-src 'self')
 ├── resources/                      # icon.ico / icon.icns / icon.png / tray.png / trayTemplate.png
@@ -351,7 +352,7 @@ pi-desktop/
 | ✅ Implemented | `src/main/**` (14 modules), `src/preload`, `src/renderer`, 6 build/probe scripts, `resources/` (including the brand mirror), `config/`, Forge + Vite + TS config, `.github/workflows/{ci,release}.yml`, `specs/` (`001`–`012` paired, `201` undecided), the four `docs/` documents |
 | ✅ Measured (Windows) | packaged first screen, in-process host, branding (copy/logo/icons/version check), cross-drive default layout startup, PTY, native notifications, Squirrel install → launch → uninstall (see [docs/构建验证记录.md](docs/构建验证记录.md) rounds 1 and 2) |
 | ⬜ Not yet measured | the full macOS / Linux paths; `make`'s dmg/deb/rpm install experience; P0-4's "memory curve during extraction"; item-by-item verification of MCP / `git` / search tools; the **visual** appearance of the tray and notifications (beyond the programmable criteria) |
-| ⬜ Still to land | `extensions/`, `skills/` (shell-specific extensions and skills, optional tier); end-to-end evidence for the parts of `specs/003`–`011` that only have specs; the `patches/` directory (plan §7 requires it with a written "empty for this version" note — the repo has none yet); the `config/trust.json` preset template (listed in plan §6.2; only `settings.json` / `mcp.json` exist) |
+| ⬜ Still to land | `extensions/`, `skills/` (shell-specific extensions and skills, optional tier); end-to-end evidence for the parts of `specs/003`–`011` that only have specs; the `config/trust.json` preset template (listed in plan §6.2; only `settings.json` / `mcp.json` exist) |
 | ❌ Explicitly out of scope | deep links / auto-start / global shortcuts / multi-window; code signing / notarization / silent update; cross-platform packaging |
 
 Note: this table is a README snapshot — file presence is governed by the repository (`git status` / `ls`),
@@ -372,8 +373,9 @@ capability matrix in [docs/桌面能力清单.md](docs/桌面能力清单.md).
 
 - **Unofficial**: independently implemented by a third party (`fellow99`), with no affiliation to or
   endorsement from the Pi / Pi Web authors.
-- **Assemble, never fork**: this version needs **0 patches** (rationale item by item in plan §7); all
-  handling of upstream is idempotent and never overwrites user changes.
+- **Assemble, never fork**: this version needs **1 patch** (`P301-1`, the pi-web settings section for
+  the sync daemon; rationale and the listed no-patch items in plan §7); all handling of upstream is
+  idempotent, applied only around the build and never overwrites user changes.
 - **Upstream licenses**: [Pi](https://github.com/earendil-works/pi) MIT ·
   [Pi Web](https://github.com/agegr/pi-web) MIT. The shipped `pi-dist.tar.gz` contains upstream artifacts
   whose license and copyright belong to the upstream authors; this project's own code is MIT

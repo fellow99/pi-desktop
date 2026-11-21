@@ -62,8 +62,8 @@ pi-desktop/
 │   │   ├── tar-extract.ts      # 流式 ustar(.gz) 解压器（从 pi-desktop-hos/src-main/tar-extract.js 移植，固定内存 O(n)）
 │   │   ├── windows.ts          # BrowserWindow + loading 页 + 加载策略 + 导航加固 + 权限白名单 + 壳层 IPC 收口
 │   │   ├── window-state.ts     # window-state.json 持久化（防抖 / getNormalBounds / 多显示器可见性校验）+ F11 全屏
-│   │   ├── tray.ts             # 托盘单例与菜单（显示主窗口 / 打开日志 / 检查更新… / 设置 / 退出；「会话目录」项已由 301 移除）
-│   │   ├── settings-window.ts  # 301：原生设置窗口（单例）+ 3 条 IPC + ≤3s 状态推送
+│   │   ├── tray.ts             # 托盘单例与菜单（显示主窗口 / 打开日志 / 检查更新… / 退出；「会话目录」「设置」项均已由 301 移除）
+│   │   ├── sync-settings-ipc.ts# 301：`pi-desktop:sync:get|apply` + senderFrame 来源校验
 │   │   ├── sync-daemon.ts      # 301：sync-daemon 子进程守护（配置原子写 / 状态机 / control 探活）
 │   │   ├── notifications.ts    # 原生通知策略（仅后台弹、同会话冷却去重、启动历史不补弹）
 │   │   ├── session-watch.ts    # 会话 JSONL 增量尾随（fs.watch + 轮询兜底 + 字节偏移游标）
@@ -72,14 +72,13 @@ pi-desktop/
 │   │   ├── update-check.ts     # 检查更新（半自动：查询 → 比较 → 打开下载页）
 │   │   ├── constants.ts        # 常量接缝（应用标识、文件/环境变量名、超时、窗口尺寸；镜像上游处注明上游路径）
 │   │   └── logger.ts           # 统一日志 [pi-desktop] → <userData>/logs + 阶段状态 + describeError
-│   ├── preload/index.ts        # 壳层桥：**只对 file:// 文档暴露**（protocol 守卫），只暴露壳层动作（无数据面）
-│   ├── preload/settings.ts     # 301：设置窗口独立 preload（`window.piDesktopSettings` 三通道）
+│   ├── preload/index.ts        # 壳层桥：file: 文档暴露既有壳动作；应用 http 源另暴露 `piDesktopSync`（get/apply，仅 301）
 │   ├── renderer/renderer.ts    # 壳层兜底页脚本（阶段文本/日志/重试/退出）
 │   └── types/globals.d.ts      # electron-squirrel-startup 声明（无自带类型）+ Vite 常量声明
 │
-├── resources/                  # 打包与应用图标（✅ 已存在：icon.ico / icon.icns / icon.png / tray.png / trayTemplate.png）+ settings/（301 设置页：index.html + app.js，CSS 内联）
+├── resources/                  # 打包与应用图标（✅ 已存在：icon.ico / icon.icns / icon.png / tray.png / trayTemplate.png）
 ├── config/                     # 预置模板源（✅ settings.json: packages/defaultProjectTrust=ask；mcp.json: mcpServers={}）
-├── patches/                    # 上游补丁目录（⬜ 待建：**本版 0 条必需**，只放 README 说明理由，工程规划 §7）
+├── patches/                    # 上游补丁目录（✅ v0.17.0/0001-sync-daemon-settings-tab.patch = P301-1；README 登记触发条件与回退）
 ├── scripts/                    # 构建脚本（✅ 已存在 4 件；未执行过完整流水线）
 │   ├── prepare-next.mjs        # ① ../pi-web：npm ci → next build → 平台裁剪 → 预览密钥轮换（裁剪做在副本上）
 │   ├── smoke-desktop.mjs       # ② 门禁：Node 24.21 起服务 + SPA/API/SSE/SDK 四项断言
