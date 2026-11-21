@@ -71,6 +71,18 @@ daemon 的 `PluginManager` 从其自身包目录向上找 `node_modules/@pi-agen
 | `sync-plugin-pi-web` 的 deliver 走 `POST /api/agent/[id]`；字段映射上游标 ⬜ 待真机校准 | 🔶（本轮测试聚焦 collect/上行，deliver 仅冒烟） |
 | daemon 侧「完整重试」上游仍为 TODO（README 现状） | ⬜（不影响本需求验收） |
 
+### 3.3 本轮已确认的决策（2026-11-21）
+
+| # | 决策 | 理由 / 影响 |
+|---|---|---|
+| D8 | 状态灯 = **进程级**（存活 + control 可达），**不**探测 hub 连通性 | 上游 `/local/status` 不暴露 SSE 状态；壳侧探 hub 会引入额外出网依赖与误红风险。局限已写入 spec FR-301-021a |
+| D9 | 令牌**明文** + `0o600` + 原子写，不做加密 | 上游 `loadConfig` 只认明文；加密必再落一份明文，收益为零。Windows 上 chmod 无效属已知 |
+| D10 | 端到端测试使用**专属 host 身份**（hub 新增 token `win-pi-desktop`） | hub 的 host 身份由 `daemonTokens[].hostName` 决定；复用 `phk_debian_pi_007` 会覆盖真实 debian-pi 的 agent 行 |
+| D11 | 设置窗口 CSS **内联**在 `index.html`，不建 `style.css` | 同 `file://` 加载面最小化；后续 tab 增加时再考虑拆分 |
+| D12 | `running` 文案从「已连接」改为「**运行中**」 | 与 D8 的进程级语义一致，避免把「进程在跑」说成「已连接」 |
+| D13 | 保留既有未提交实现作为本轮基座，不重写 | 逐条核对与需求一致（托盘/设置窗口/四字段/状态灯/配置落盘/启动编排/退出链） |
+| D14 | 文档一致性只修本需求造成的口径漂移（README 301 表行、108 托盘描述、STRUCTURE、工程规划 §5.3） | `AGENTS.md` 的 `npm run check` 不存在属既有缺陷，改法有分歧，仅在交接文档记录 |
+
 ## 4. 数据模型
 
 ### 4.1 实体
@@ -168,7 +180,7 @@ IPC（preload `window.piDesktopSettings`）：
 | `src/main/sync-daemon.ts` | **新增**：配置读写 + 子进程生命周期 + 状态机 + control 轮询 |
 | `src/main/settings-window.ts` | **新增**：设置窗口（单例）+ 3 条 IPC + 状态推送定时器 |
 | `src/preload/settings.ts` | **新增**：设置窗口 preload（`piDesktopSettings` API） |
-| `resources/settings/index.html` / `style.css` / `app.js` | **新增**：原生 HTML/CSS/JS（多 tabs + 中枢服务表单） |
+| `resources/settings/index.html` / `app.js` | **新增**：原生 HTML/CSS/JS（多 tabs + 中枢服务表单）；CSS 以 `<style>` **内联**在 `index.html`（不另建 `style.css`：设置页只加载本地静态文件，内联可减少 `file://` 下的加载失败面） |
 | `src/main/tray.ts` | **改**：移除 `agentDirItem`/`hasAgentDir`/`openSessionDir`；新增「设置」项 |
 | `src/main/index.ts` | **改**：`trayActions()` 换 `openSettings`；`boot()` 插入 daemon 启动；退出链 stop |
 | `forge.config.ts` | **改**：`RunAsNode: true`；`extraResource` + `'resources/settings/**'`；vite build + settings preload 入口 |
@@ -189,6 +201,18 @@ IPC（preload `window.piDesktopSettings`）：
 
 见 `test-cases.md`：单元层（配置读写/校验/状态机，typecheck + 手工脚本）+ 集成层
 （dev 态 `npm start` + Docker hub 端到端 + Playwright/CDP 驱动设置窗口）。
+
+### 8.1 自动化取证方式（本轮）
+
+| 层 | 做法 |
+|---|---|
+| 类型 | `npx tsc --noEmit`（本仓无 `npm run check`，CI 口径即 typecheck） |
+| 设置窗口 UI | `electron-forge start -- --remote-debugging-port=9222` 后，以 Node inspector 附加主进程、用**真实已注册的 IPC** 另开一个设置窗口（复用 `.vite/build/preload-settings.js` + `resources/settings/index.html`），再用 Playwright `connectOverCDP` 驱动表单 |
+| 主进程 / daemon | 日志 `<userData>/logs/pi-desktop-<date>.log` + 子进程 PID + control API `GET /local/status` + 配置文件比对 |
+| 端到端上行 | hub console（`http://127.0.0.1:12380/hub/`，admin）里核对 `win-pi-desktop` host 与其会话 |
+| 打包态 | `npm run package` 后启动打包产物，验证 `RunAsNode` fuse + asar 内 daemon 可拉起 |
+
+> 托盘菜单本身的**点击**需人工/UI 自动化，本轮以「源码 + review」核对菜单项，点击路径在交接文档中标为待人工确认。
 
 ## 9. 交付与回滚
 

@@ -104,10 +104,17 @@
 
 ### 3.5 连接状态（红绿灯）
 
-- **FR-301-021**：状态灯语义（进程级）：
-  - 绿 = daemon 进程存活且其 control API（`pluginRoot/daemon-control.json` 中
+- **FR-301-021**：状态灯语义 = **进程级**（plan §3.3 D8，本轮已定）：
+  - 绿 = daemon 子进程存活且其 control API（`pluginRoot/daemon-control.json` 中
     `{port,token}` → `GET http://127.0.0.1:<port>/local/status`，Bearer）可达；
-  - 红 = `enabled=false`、启动中失败、进程退出、control 不可达。
+  - 红 = `enabled=false`、启动中失败（20s 内 control 始终不可达）、进程退出、control 不可达。
+  - **MUST NOT** 探测 hub 连通性来驱动灯色（不额外发起壳→中枢请求）。
+- **FR-301-021a**：因此灯色**不保证**中枢可用：`hub.url` 填错或令牌无效时灯仍可能为绿。
+  该局限 MUST 在文档中显式声明，MUST NOT 用「已连接」等可能误导的文案；
+  上游 `sync-daemon` 未在 `/local/status` 暴露 SSE 连接状态（只读参照，不可改），
+  「hub 连接级状态」标 ⬜ 待上游支持。
+- **FR-301-021b**：状态文案 MUST 为：`running`→「运行中」、`starting`→「启动中…」、
+  `disabled`→「未启用」、`stopped`→「已停止（<原因>）」；表单行标签仍为「连接状态」（需求原文）。
 - **FR-301-022**：设置窗口打开期间，主进程 SHOULD 以短周期（≤3s）轮询 daemon 状态并推送窗口；
   窗口 MUST NOT 轮询时泄漏句柄（关闭即停）。
 
@@ -156,6 +163,10 @@ Given daemon 运行中 → When 退出应用 → Then 无残留 `pi-agent-hub-sy
 ## 6. 非功能需求
 
 - 安全：令牌仅落盘于 0600 文件；日志 MUST NOT 回显令牌/密码全文；设置窗口无 nodeIntegration。
+- 安全（取舍，plan §3.3 D9）：`~/.pi-desktop/sync-daemon.json` 的**明文令牌**属**有意接受**的取舍——
+  上游 daemon 的 `loadConfig` 只认明文 `hub.token`，加密必然要再落一份明文，收益为零；
+  Windows 上 `chmod 0o600` 实为 no-op，实际保护来自用户目录 NTFS ACL。加密存储（safeStorage /
+  系统凭据）**不在本轮范围**。
 - 稳健：daemon 崩溃可经再次「应用」恢复；`~/.pi-desktop/sync-daemon.json` 损坏（非 JSON）时
   按「配置缺失」处理（不启动 + 日志告警），MUST NOT 抛到主流程。
 - 性能：状态轮询开销可忽略（≤1 次/3s，仅窗口打开时）。
@@ -169,6 +180,9 @@ Given daemon 运行中 → When 退出应用 → Then 无残留 `pi-agent-hub-sy
 - 约束：pi-web 密码每启动随机生成（`PI_WEB_PASSWORD` 可固定）→ 每次（重）启动 daemon 前
   由壳刷新 options.password 写入配置文件。
 - 假设：本机已有 `~/.pi` 会话数据用于采集验证；测试 hub 用 Docker Desktop（见 deploy/README.md）。
+- 约束（plan §3.3 D10）：**hub 侧 host 身份由 `daemonTokens[].hostName` 决定，不由 `host.name` 决定**。
+  故跨机复用同一 token 会把本端写进别的 host 身份（覆盖其 agent 行）。测试 MUST 使用专属 token
+  （本轮：`win-pi-desktop` / `phk_win_pi_desktop_301`）；`host.name` 仅参与 `agentId` 计算。
 - 假设：ELECTRON_RUN_AS_NODE=1 下 Electron 二进制等价 Node（ESM 可用；Electron 43 内置 Node ≥22.19）。
 
 ## 8. 依赖

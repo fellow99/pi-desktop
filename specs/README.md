@@ -78,7 +78,7 @@
 | 102 | 产物引导 | `artifact-bootstrap` | `pi-dist` 组装、`tar.gz`(ustar)、首启流式解压、SHA-256 marker 幂等（不是存在性判断） | ✅ 成对（[102-artifact-bootstrap/](./102-artifact-bootstrap/)） |
 | 103 | 窗口管理 | `window` | `BrowserWindow` + loading 页（阶段可见）、同源加载 `http://127.0.0.1:<port>/`、导航加固、权限白名单、`window.open` 拦截 | ✅ 成对（[103-window/](./103-window/)） |
 | 104 | 壳层桥 | `preload` | 默认空实现；按需启用**只承载壳层动作**的最小桥（数据面永不入 IPC） | ✅ 成对（[104-preload/](./104-preload/)） |
-| 108 | 系统托盘 | `tray` | 托盘单例与菜单（显示主窗口 / 会话目录 / 打开日志 / 检查更新 / 退出）、唤回、退出入口 | ✅ 成对（[108-tray/](./108-tray/)） |
+| 108 | 系统托盘 | `tray` | 托盘单例与菜单（显示主窗口 / 打开日志 / 检查更新… / 设置 / 退出）、唤回、退出入口（「会话目录」菜单项已由 [301](./301-sync-daemon/) 移除，对应的渲染层 IPC `pi-desktop:open-session-dir` 保留） | ✅ 成对（[108-tray/](./108-tray/)） |
 | 109 | 原生通知 | `notification` | 会话 JSONL 尾随 → 原生通知策略（仅后台弹、同会话冷却去重、历史不补弹） | ✅ 成对（[109-notification/](./109-notification/)） |
 | 110 | 生命周期与安全 | `lifecycle` | 单实例锁、`NO_PROXY` 并入、系统 CA 合并、代理绕过、崩溃兜底、优雅关闭链 | ✅ 成对（[110-lifecycle/](./110-lifecycle/)） |
 | 111 | 应用入口编排 | `app-entry` | 锁 → 安全准备 → `AppUserModelId` → 起宿主 → 建窗 → 托盘/通知 → `activate`/退出；Squirrel 事件 | ✅ 成对（[111-app-entry/](./111-app-entry/)） |
@@ -90,6 +90,15 @@
 | 编号 | 模块名 | 英文名 | 职责（一行） | 规格状态 |
 |---|---|---|---|---|
 | 201 | 扩展投放 | `plugin-runtime` | 壳专用扩展/技能的物化与 `settings.json` 接线（可选档）；上游 UI 已内置 Plugins/Skills/MCP 管理，**不建独立市场工程**（Q7） | ✅ 成对（Status Proposed；是否启用待决策） |
+
+### 跨端需求模块（301+）
+
+> 同一需求编号同时落在多个子工程 `specs/` 下（**父工程不写该编号的 spec**）；本工程为落地实现方，
+> `pi-desktop-android` / `pi-desktop-hos` / `pi-desktop-ark` 各自同名目录记录「本轮暂不实现」决策。
+
+| 编号 | 模块名 | 英文名 | 职责（一行） | 规格状态 |
+|---|---|---|---|---|
+| 301 | 中枢服务同步 | `sync-daemon` | 以**子进程**内嵌 `@pi-agent-hub/sync-daemon`（+ `sync-plugin-pi-web`）；托盘「设置」入口 → 原生 HTML 设置窗口（多 tabs + 「中枢服务」表单：状态灯/地址/本端名称/本端令牌/启用/应用）；配置落 `~/.pi-desktop/sync-daemon.json`；pi-web 就绪后按 `enabled` 拉起，退出链停止 | ✅ 成对（[301-sync-daemon/](./301-sync-daemon/) + `test-cases.md`） |
 
 ### 编号迁移对照（2026-10-31）
 
