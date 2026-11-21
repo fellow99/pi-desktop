@@ -9,7 +9,9 @@ import { ensureLoopbackNoProxy, installCrashHandlers, logShutdownSnapshot, setup
 import { describeError, getLogFilePath, getStage, logError, logInfo, logWarn, setStage } from './logger';
 import { setupNotifications } from './notifications';
 import { hasRecentActivity } from './session-watch';
+import { openSettingsWindow, registerSettingsIpc } from './settings-window';
 import { loadSettings } from './settings';
+import { isSyncDaemonActive, startSyncDaemonIfEnabled, stopSyncDaemon } from './sync-daemon';
 import { createTray, destroyTray, refreshTrayMenu } from './tray';
 import { checkForUpdates, openDownloadPage } from './update-check';
 import { createMainWindow, getMainWindow, loadPiWebUi, registerShellIpc, setStageOnWindow } from './windows';
@@ -67,11 +69,7 @@ function failVisible(detail: string, err: unknown): void {
 function trayActions(): Parameters<typeof createTray>[0] {
   return {
     showWindow: showMainWindow,
-    openSessionDir: async () => {
-      const { shell } = await import('electron');
-      if (!runtime.agentDir) return;
-      await shell.openPath(runtime.agentDir);
-    },
+    openSettings: openSettingsWindow,
     openLog: async () => {
       const { shell } = await import('electron');
       const file = getLogFilePath();
@@ -106,7 +104,6 @@ function trayActions(): Parameters<typeof createTray>[0] {
     },
     quit: () => app.quit(),
     isReady: () => runtime.server !== null,
-    hasAgentDir: () => runtime.agentDir !== null,
   };
 }
 
@@ -172,6 +169,16 @@ async function boot(): Promise<void> {
     setStage('就绪');
     setStageOnWindow(win, '就绪', `服务端 ${runtime.server.url}｜agentDir = ${runtime.agentDir}`, 'done');
     refreshTrayMenu(trayActions());
+
+    // 301：pi-web 就绪后按配置自动拉起 sync-daemon（enabled=true 且配置完整才启动；
+    // 失败只记日志 + 状态灯置红，绝不阻塞主流程，FR-301-014/016）。
+    if (runtime.server && runtime.agentDir) {
+      void startSyncDaemonIfEnabled({
+        server: runtime.server.url,
+        agentDir: runtime.agentDir,
+        password: runtime.server.password,
+      });
+    }
 
     if (!runtime.stopNotifications && runtime.agentDir) {
       runtime.stopNotifications = setupNotifications({
@@ -246,6 +253,13 @@ if (started) {
         quit: () => app.quit(),
       });
 
+      // 301：设置窗口 IPC（运行时依赖由闭包提供，避免反向 import）。
+      registerSettingsIpc(() =>
+        runtime.server && runtime.agentDir
+          ? { server: runtime.server.url, agentDir: runtime.agentDir, password: runtime.server.password }
+          : null,
+      );
+
       const win = createMainWindow({
         getAppOrigin: () => (runtime.server ? new URL(runtime.server.url).origin : null),
       });
@@ -303,14 +317,16 @@ if (started) {
       const beginAt = Date.now();
       if (runtime.quitting) return;
 
-      const needCleanup = runtime.server !== null || runtime.stopNotifications !== null;
+      const needCleanup = runtime.server !== null || runtime.stopNotifications !== null || isSyncDaemonActive();
       if (!needCleanup) return;
 
       runtime.quitting = true;
       event.preventDefault();
-      logInfo('开始优雅退出（关闭服务端 → 停止会话尾随 → 退出）');
+      logInfo('开始优雅退出（停止同步守护 → 关闭服务端 → 停止会话尾随 → 退出）');
       Promise.resolve()
         .then(async () => {
+          // 301：退出链先停 daemon（含其插件子进程，FR-301-018），失败不阻断退出。
+          await stopSyncDaemon().catch((err) => logWarn(`停止 sync-daemon 失败（继续退出）：${describeError(err)}`));
           runtime.stopNotifications?.();
           runtime.stopNotifications = null;
           await closeWithDeadline(runtime.server, SHUTDOWN_DEADLINE_MS);

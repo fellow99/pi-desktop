@@ -42,7 +42,15 @@ const config: ForgeConfig = {
     // artifact.ts 优先读它作为「期望哈希」，缺失时退化为「当前 tar 实算哈希」并打 WARN。
     // 两者语义等价（tar 变化都会触发重解压），但随包分发可消掉打包态的退化告警，并与
     // docs/发布与更新.md §6.1「包内期望值」、docs/构建验证记录.md §4 的判据一致。
-    extraResource: ['pi-dist.tar.gz', 'pi-dist.version', 'resources/icon.png', 'resources/tray.png', 'resources/trayTemplate.png'],
+    extraResource: [
+      'pi-dist.tar.gz',
+      'pi-dist.version',
+      'resources/icon.png',
+      'resources/tray.png',
+      'resources/trayTemplate.png',
+      // 301：设置窗口静态页（原生 HTML/JS，settings-window.ts 以 loadFile 加载）。
+      'resources/settings/**',
+    ],
     appBundleId: 'com.fellow99.pi.desktop',
     appCategoryType: 'public.app-category.developer-tools',
   },
@@ -61,13 +69,18 @@ const config: ForgeConfig = {
         build: [
           { entry: 'src/main/index.ts', config: 'vite.main.config.ts', target: 'main' },
           { entry: 'src/preload/index.ts', config: 'vite.preload.config.ts', target: 'preload' },
+          // 301：设置窗口独立 preload（产物 preload-settings.js）。
+          { entry: 'src/preload/settings.ts', config: 'vite.preload-settings.config.ts', target: 'preload' },
         ],
         renderer: [{ name: 'main_window', config: 'vite.renderer.config.ts' }],
       },
     } as VitePlugin,
     new FusesPlugin({
       version: FuseVersion.V1,
-      [FuseV1Options.RunAsNode]: false,
+      // 301（FR-301-020 / plan D2）：sync-daemon 子进程依赖 ELECTRON_RUN_AS_NODE=1，
+      // 打包态必须允许以 node 身份运行（与 host.ts sidecar 模式的既有依赖一致）。
+      // 安全权衡：允许 `pi-desktop.exe <script>` 以 node 运行 —— 与 Electron 默认 fuse 状态一致。
+      [FuseV1Options.RunAsNode]: true,
       [FuseV1Options.EnableCookieEncryption]: true,
       [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
       [FuseV1Options.EnableNodeCliInspectArguments]: false,

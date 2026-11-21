@@ -16,12 +16,11 @@ import { describeError, logError, logInfo } from './logger';
 
 export type TrayActions = {
   showWindow(): void;
-  openSessionDir(): Promise<void>;
+  openSettings(): void;
   openLog(): Promise<void>;
   checkForUpdates(): Promise<void>;
   quit(): void;
   isReady(): boolean;
-  hasAgentDir(): boolean;
 };
 
 let tray: Tray | null = null;
@@ -32,20 +31,13 @@ function iconPath(): string {
 }
 
 function buildMenu(actions: TrayActions): Menu {
-  const agentDirItem = {
-    label: '会话目录',
-    enabled: actions.hasAgentDir(),
-    click: () => {
-      void actions.openSessionDir().catch((err) => logError(`打开会话目录失败：${describeError(err)}`));
-    },
-  };
   return Menu.buildFromTemplate([
     { label: `${PRODUCT_NAME}${actions.isReady() ? '' : '（启动中…）'}`, enabled: false },
     { type: 'separator' },
     { label: '显示主窗口', click: () => actions.showWindow() },
     { label: '打开日志', click: () => void actions.openLog().catch((err) => logError(`打开日志失败：${describeError(err)}`)) },
     { label: '检查更新…', click: () => void actions.checkForUpdates().catch((err) => logError(`检查更新失败：${describeError(err)}`)) },
-    agentDirItem,
+    { label: '设置', click: () => actions.openSettings() },
     { type: 'separator' },
     { label: '退出', click: () => actions.quit() },
   ]);
