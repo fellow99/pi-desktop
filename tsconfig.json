@@ -17,5 +17,5 @@
     "outDir": "dist",
     "types": ["node"]
   },
-  "include": ["src", "forge.env.d.ts", "forge.config.ts", "vite.main.config.ts", "vite.preload-settings.config.ts", "vite.preload.config.ts", "vite.renderer.config.ts"]
+  "include": ["src", "forge.env.d.ts", "forge.config.ts", "vite.main.config.ts", "vite.preload.config.ts", "vite.renderer.config.ts"]
 }

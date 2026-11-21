@@ -147,8 +147,7 @@ export function createMainWindow(deps: { getAppOrigin: () => string | null }): B
 
   const win = new BrowserWindow(options);
   mainWindow = win;
-  // 301 引入第二窗口后，「主窗口已关闭但设置窗口还在」成为可达状态：
-  // 此时必须置 null，否则 showMainWindow()/activate 会对已销毁的 BrowserWindow 调 isMinimized()（抛错）。
+  // 主窗口关闭后必须置 null，否则 showMainWindow()/activate 会对已销毁的 BrowserWindow 调 isMinimized()（抛错）。
   win.on('closed', () => {
     if (mainWindow === win) mainWindow = null;
   });

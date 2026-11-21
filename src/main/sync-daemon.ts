@@ -270,7 +270,7 @@ export async function loadSyncConfig(): Promise<LoadResult> {
   return parseFile(text);
 }
 
-/** 原子写配置（临时文件 + rename，0o600）。校验失败抛 Error（可读消息，供设置窗口展示）。 */
+/** 原子写配置（临时文件 + rename，0o600）。校验失败抛 Error（可读消息，供设置分区展示）。 */
 export async function saveSyncConfig(settings: SyncDaemonSettings, opts: SyncRuntimeOptions): Promise<void> {
   const problem = validateSettings(settings);
   if (problem) throw new Error(problem);
@@ -495,7 +495,7 @@ async function stopSyncDaemonInner(): Promise<void> {
   setStatus(loaded?.enabled ? { state: 'stopped', reason: '已停用' } : { state: 'disabled' });
 }
 
-/** 停止 daemon（幂等、串行）：退出链 / 设置窗口 / 应用链路统一入口。 */
+/** 停止 daemon（幂等、串行）：退出链 / 中枢服务设置分区 / 应用链路统一入口。 */
 export function stopSyncDaemon(): Promise<void> {
   return serialize(() => stopSyncDaemonInner());
 }
@@ -599,7 +599,7 @@ export function startSyncDaemon(opts: SyncRuntimeOptions): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// 对外门面（设置窗口 IPC / boot 编排）
+// 对外门面（中枢服务设置分区 IPC / boot 编排）
 // ---------------------------------------------------------------------------
 
 /**

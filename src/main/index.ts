@@ -9,7 +9,7 @@ import { ensureLoopbackNoProxy, installCrashHandlers, logShutdownSnapshot, setup
 import { describeError, getLogFilePath, getStage, logError, logInfo, logWarn, setStage } from './logger';
 import { setupNotifications } from './notifications';
 import { hasRecentActivity } from './session-watch';
-import { openSettingsWindow, registerSettingsIpc } from './settings-window';
+import { registerSyncSettingsIpc } from './sync-settings-ipc';
 import { loadSettings } from './settings';
 import { isSyncDaemonActive, markSyncDaemonShuttingDown, startSyncDaemonIfEnabled, stopSyncDaemon } from './sync-daemon';
 import { createTray, destroyTray, refreshTrayMenu } from './tray';
@@ -52,7 +52,7 @@ const runtime: Runtime = {
 
 function showMainWindow(): void {
   const win = getMainWindow();
-  // 已销毁（301：主窗口关掉但设置窗口仍在时可达）：不得再调窗口方法，否则抛 "Object has been destroyed"。
+  // 窗口可能已被销毁（例如退出过程中）：不得再调窗口方法，否则抛 "Object has been destroyed"。
   if (!win || win.isDestroyed()) return;
   if (win.isMinimized()) win.restore();
   if (!win.isVisible()) win.show();
@@ -67,10 +67,29 @@ function failVisible(detail: string, err: unknown): void {
   if (win) setStageOnWindow(win, getStage(), message, 'failed');
 }
 
+/** 当前内嵌 pi-web（或 dev server）的源：用于导航收口与 sync 桥的来源校验。 */
+function currentAppOrigin(): string | null {
+  if (runtime.server) {
+    try {
+      return new URL(runtime.server.url).origin;
+    } catch {
+      return null;
+    }
+  }
+  const devServer = process.env.PI_DESKTOP_DEV_SERVER;
+  if (devServer) {
+    try {
+      return new URL(devServer).origin;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 function trayActions(): Parameters<typeof createTray>[0] {
   return {
     showWindow: showMainWindow,
-    openSettings: openSettingsWindow,
     openLog: async () => {
       const { shell } = await import('electron');
       const file = getLogFilePath();
@@ -254,15 +273,17 @@ if (started) {
         quit: () => app.quit(),
       });
 
-      // 301：设置窗口 IPC（运行时依赖由闭包提供，避免反向 import）。
-      registerSettingsIpc(() =>
-        runtime.server && runtime.agentDir
-          ? { server: runtime.server.url, agentDir: runtime.agentDir, password: runtime.server.password }
-          : null,
+      // 301：中枢服务设置 IPC（pi-web 设置对话框的 sync 分区；运行时依赖由闭包提供）。
+      registerSyncSettingsIpc(
+        () =>
+          runtime.server && runtime.agentDir
+            ? { server: runtime.server.url, agentDir: runtime.agentDir, password: runtime.server.password }
+            : null,
+        () => currentAppOrigin(),
       );
 
       const win = createMainWindow({
-        getAppOrigin: () => (runtime.server ? new URL(runtime.server.url).origin : null),
+        getAppOrigin: currentAppOrigin,
       });
 
       // 关窗前：若最近 60 s 内有会话写入，给一次确认（agent 可能仍在跑）。
@@ -323,7 +344,7 @@ if (started) {
 
       runtime.quitting = true;
       event.preventDefault();
-      // 301：先关闸门，此后任何（重）启动请求（含设置窗口的「应用」）均不得再 spawn，
+      // 301：先关闸门，此后任何（重）启动请求（含 pi-web 设置分区的「应用」）均不得再 spawn，
       // 否则退出链完成后再拉起会留下 detached 孤儿进程（FR-301-018）。
       markSyncDaemonShuttingDown();
       logInfo('开始优雅退出（停止同步守护 → 关闭服务端 → 停止会话尾随 → 退出）');

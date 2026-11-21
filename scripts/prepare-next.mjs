@@ -6,8 +6,9 @@
  *   node scripts/prepare-next.mjs [--source <pi-web 目录>] [--no-install] [--force-install] [--skip-build]
  *
  * 纪律：
- *   - **只读源码、只写构建产物**：不修改 `../pi-web` 的任何源码文件；
- *     `npm ci` 与 `next build` 是上游既有的两个步骤，本脚本只负责调用与校验。
+ *   - **只读源码、只写构建产物**：除 `patches/<tag>/` 的**构建期幂等补丁**（阶段 1b）外，
+ *     不修改 `../pi-web` 的任何源码文件；补丁在构建成功后由 `finally` 自动回退。
+ *   - `npm ci` 与 `next build` 是上游既有的两个步骤，本脚本只负责调用与校验。
  *   - 裁剪（删除非目标平台的 prebuilds / `.next/cache`）**不在这里做**：
  *     必须在 `collect-pi.mjs` 产出的**副本**上做（🔶 沿用 pi-desktop-hos 的修正结论：
  *     直接删源目录会让 Next 在启动时尝试联网补下载）。
@@ -18,6 +19,8 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { applyAll, revertAll } from './patches.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const REPO_PARENT = resolve(ROOT, '..');
@@ -164,19 +167,32 @@ function main() {
   // 原生依赖完整性：放在 npm ci 之后、next build 之前 —— 坏安装立刻失败，不浪费一次构建（FR-012-027）。
   verifyNativeDeps(source);
 
-  if (args.build) {
-    run('node', [join('node_modules', 'next', 'dist', 'bin', 'next'), 'build', '--webpack'], { cwd: source });
-  } else {
-    console.log('[pi-desktop][prepare-next] --skip-build：跳过 next build');
-  }
+  // 阶段 1b：上游补丁（patches/<pi-web tag>/）。幂等应用，构建后自动回退（D20）。
+  let appliedPatches = [];
+  try {
+    if (args.build) {
+      appliedPatches = applyAll(source, `v${pkg.version}`);
+    } else {
+      console.log('[pi-desktop][prepare-next] --skip-build：跳过上游补丁与 next build');
+    }
 
-  const buildId = verifyArtifacts(source);
-  const nextStats = dirSizeBytes(join(source, '.next'));
-  const nmStats = dirSizeBytes(nodeModules);
-  console.log(
-    `[pi-desktop][prepare-next] 完成：.next = ${mb(nextStats.bytes)} / ${nextStats.files} 文件｜` +
-      `node_modules = ${mb(nmStats.bytes)} / ${nmStats.files} 文件｜BUILD_ID = ${buildId}`,
-  );
+    if (args.build) {
+      run('node', [join('node_modules', 'next', 'dist', 'bin', 'next'), 'build', '--webpack'], { cwd: source });
+    }
+
+    const buildId = verifyArtifacts(source);
+    const nextStats = dirSizeBytes(join(source, '.next'));
+    const nmStats = dirSizeBytes(nodeModules);
+    console.log(
+      `[pi-desktop][prepare-next] 完成：.next = ${mb(nextStats.bytes)} / ${nextStats.files} 文件｜` +
+        `node_modules = ${mb(nmStats.bytes)} / ${nmStats.files} 文件｜BUILD_ID = ${buildId}`,
+    );
+  } finally {
+    if (appliedPatches.length > 0) {
+      console.log('[pi-desktop][prepare-next] 回退上游补丁（pi-web 保持 pristine）');
+      revertAll(source, appliedPatches);
+    }
+  }
 }
 
 try {

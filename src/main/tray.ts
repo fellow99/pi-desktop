@@ -16,7 +16,6 @@ import { describeError, logError, logInfo } from './logger';
 
 export type TrayActions = {
   showWindow(): void;
-  openSettings(): void;
   openLog(): Promise<void>;
   checkForUpdates(): Promise<void>;
   quit(): void;
@@ -37,7 +36,6 @@ function buildMenu(actions: TrayActions): Menu {
     { label: '显示主窗口', click: () => actions.showWindow() },
     { label: '打开日志', click: () => void actions.openLog().catch((err) => logError(`打开日志失败：${describeError(err)}`)) },
     { label: '检查更新…', click: () => void actions.checkForUpdates().catch((err) => logError(`检查更新失败：${describeError(err)}`)) },
-    { label: '设置', click: () => actions.openSettings() },
     { type: 'separator' },
     { label: '退出', click: () => actions.quit() },
   ]);

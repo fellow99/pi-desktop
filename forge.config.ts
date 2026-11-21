@@ -48,11 +48,6 @@ const config: ForgeConfig = {
       'resources/icon.png',
       'resources/tray.png',
       'resources/trayTemplate.png',
-      // 301：设置窗口静态页（原生 HTML/JS，settings-window.ts 以 loadFile 加载）。
-      // 必须传**目录条目**而非 `resources/settings/**`：@electron/packager 不做 glob 展开，
-      // 其 copyExtraResources 为 `fs.copy(src, resolve(staging, resourcesDir, basename(src)))`，
-      // 传 `**` 会被当成字面路径（basename = `**`）→ ENOENT 使 `electron-forge make` 直接失败。
-      'resources/settings',
     ],
     appBundleId: 'com.fellow99.pi.desktop',
     appCategoryType: 'public.app-category.developer-tools',
@@ -72,8 +67,6 @@ const config: ForgeConfig = {
         build: [
           { entry: 'src/main/index.ts', config: 'vite.main.config.ts', target: 'main' },
           { entry: 'src/preload/index.ts', config: 'vite.preload.config.ts', target: 'preload' },
-          // 301：设置窗口独立 preload（产物 preload-settings.js）。
-          { entry: 'src/preload/settings.ts', config: 'vite.preload-settings.config.ts', target: 'preload' },
         ],
         renderer: [{ name: 'main_window', config: 'vite.renderer.config.ts' }],
       },

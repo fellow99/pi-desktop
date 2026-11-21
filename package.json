@@ -20,6 +20,7 @@
     "probe:renderer": "node scripts/probe-renderer.mjs",
     "collect:pi": "node scripts/collect-pi.mjs",
     "pin:upstream": "node scripts/pin-upstream.mjs",
+    "patches": "node scripts/patches.mjs status",
     "brand": "node scripts/brand-assets.mjs",
     "prepackage": "node scripts/prepare-next.mjs && node scripts/collect-pi.mjs",
     "premake": "node scripts/prepare-next.mjs && node scripts/collect-pi.mjs"
