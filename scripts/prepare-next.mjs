@@ -142,6 +142,41 @@ function verifyNativeDeps(source) {
   console.log(`[pi-desktop][prepare-next] 原生依赖校验通过：${pkg} ${triple} → ${where}`);
 }
 
+/**
+ * 安装树与 lock 是否同一版本口径。
+ *
+ * 为什么需要：`node_modules` 存在就跳过 `npm ci` 的判据只证明「装过」，不证明「装的是当前版本」。
+ * 上游 tag 一升（pi-web 0.17.0 → 0.18.0 带 next 16.4.4 → 16.4.6、pi 1.5.2 → 1.6.0），
+ * 旧 node_modules 会让整轮「升级」静默落空：构建成功、产物里的依赖仍是上一版。
+ * 0.18.0 轮实测踩中（产物 pi-dist 内 next=16.4.4 / pi-coding-agent=1.5.2，而 lock 为 16.4.6 / 1.6.0）。
+ */
+function installedVersionsStale(source) {
+  const lockPath = join(source, 'package-lock.json');
+  if (!existsSync(lockPath)) return false;
+  let locked;
+  try {
+    locked = JSON.parse(readFileSync(lockPath, 'utf8')).packages ?? {};
+  } catch {
+    return false;
+  }
+  for (const [name, meta] of Object.entries(locked)) {
+    if (!name.startsWith('node_modules/')) continue;
+    const installedPkg = join(source, name, 'package.json');
+    if (!existsSync(installedPkg)) continue;
+    let actual;
+    try {
+      actual = JSON.parse(readFileSync(installedPkg, 'utf8')).version;
+    } catch {
+      continue;
+    }
+    if (meta?.version && actual !== meta.version) {
+      console.log(`[prepare-next] 安装树与 lock 不一致：${name} 已装 ${actual}，lock 为 ${meta.version} → 需要重装`);
+      return true;
+    }
+  }
+  return false;
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const source = args.source;
@@ -155,7 +190,10 @@ function main() {
   console.log(`[pi-desktop][prepare-next] pi-web ${pkg.name}@${pkg.version}｜next=${pkg.dependencies?.next ?? '?'}`);
 
   const nodeModules = join(source, 'node_modules');
-  const needInstall = args.forceInstall || !existsSync(nodeModules) || !existsSync(join(nodeModules, 'next'));
+  const needInstall = args.forceInstall
+    || !existsSync(nodeModules)
+    || !existsSync(join(nodeModules, 'next'))
+    || installedVersionsStale(source);
   if (args.install && needInstall) {
     run('npm', ['ci'], { cwd: source });
   } else if (args.install) {

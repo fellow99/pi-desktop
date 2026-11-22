@@ -37,7 +37,7 @@
 | **替代方案** | ① 插件 / 扩展 —— 无设置分区插槽（否决）；② 运行时注入 —— 依赖上游 DOM、升级无构建期感知（否决）；③ 保留原生设置窗口 —— 与 pi-web 现有设置重复建设（用户已否决） |
 | **往返校验** | 应用前记录受影响文件 SHA-256 → 应用 → 反向 → 断言逐文件还原 → 再正式应用；冲突即硬失败（绝不 `--3way`） |
 | **生成方式** | 独立 detached worktree（`git -C ../pi-web worktree add --detach <tmp> v0.17.0`）上修改并 `tsc --noEmit` 验证 → `git diff --cached --output=<patch>`（不经 PowerShell 重定向，避免 UTF-16）→ `worktree remove` |
-| **回退方式** | `node scripts/patches.mjs revert`（或在 `../pi-web` 上 `git apply --reverse patches/v0.17.0/0001-sync-daemon-settings-tab.patch`） |
+| **回退方式** | `node scripts/patches.mjs revert`（或在 `../pi-web` 上 `git apply --reverse patches/v0.18.0/0001-sync-daemon-settings-tab.patch`） |
 | **规格** | `specs/301-sync-daemon/{spec,plan,test-cases}.md`（FR-301-004a/004b/004c、D18–D20、TC-21） |
 
 ## 1. 补丁纪律（新增补丁时必须遵守）

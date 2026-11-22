@@ -165,7 +165,7 @@ builds the three-OS matrix and publishes the Release assets.
 | Build | makers | 5 Forge makers | Squirrel(win) / ZIP(win,mac,linux) / DMG(mac) / RPM(linux) / DEB(linux) |
 | CI | Node | **24.21.0** | same version as the runtime (the gate starts the server with the same Node) |
 | Upstream (shipped inside `pi-dist`) | `pi-web` | **0.18.0** (Next **16.4.6** App Router) | SPA + `/api/*` (~90 routes) + SSE |
-| Upstream (shipped inside `pi-dist`) | `pi` | **1.5.2** (`@earendil-works/pi-coding-agent`, …) | in-process SDK; `packages/*` locked at 1.5.2 |
+| Upstream (shipped inside `pi-dist`) | `pi` | **1.6.0** (`@earendil-works/pi-coding-agent`, …) | in-process SDK; `packages/*` locked at 1.6.0 |
 | Upstream native module | `node-pty` | 1.2.0-beta.15 | `serverExternalPackages`; **measured loadable under ABI 148** (round 2) with a build-time completeness gate (`FR-012-027`) |
 
 The shell's only runtime dependency is `electron-squirrel-startup`; `next` / `@earendil-works/*` /
@@ -382,3 +382,7 @@ capability matrix in [docs/桌面能力清单.md](docs/桌面能力清单.md).
   (see [LICENSE](LICENSE)).
 - **Name notice**: the name contains `pi` only to describe the upstream project being wrapped; the in-app
   "About" page states the same notices.
+- **One opt-in outbound request**: upstream pi-web v0.18.0 renders a ```plantuml fence on
+  `www.plantuml.com` — only after the user clicks "Render on plantuml.com", and only that one
+  diagram's source is encoded into the URL. Nothing else leaves the machine; do not click it on
+  confidential diagrams.
