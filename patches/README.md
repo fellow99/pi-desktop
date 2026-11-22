@@ -2,7 +2,25 @@
 
 > 原则：**补丁是结论，不是快捷方式**。每一条都必须写明「触发条件 / 实施时机 / 替代方案」，
 > 并占用全局唯一编号（编号只增不改、不复用）。
-> 当前上游基线：`pi-web` tag **`v0.17.0`**（commit `174bff9`）。
+> 当前上游基线：`pi-web` tag **`v0.18.0`**（commit `2daa0d1`）。
+
+
+## 0.0 v0.18.0 rebase 记录（2026-11-22）
+
+| 项 | 内容 |
+|---|---|
+| 上游基线 | `pi-web` tag **`v0.18.0`**（`2daa0d131eae6c2fd8c2a80872eee01ea3c7a0a1`，annotated tag `38bb6805`，`Release v0.18.0`）· `pi` tag **`v1.6.0`**（`faac585884ae2c013a6b1400f3e9e77f10b34bac`） |
+| 生成方式 | 独立 detached worktree `git worktree add --detach ../.tmp/wt-018 v0.18.0`；逐条 `git apply`（冲突条目手工重放）→ `git add` → `git commit` → `git diff HEAD^ HEAD > patches/v0.18.0/<同名>.patch`；**未经 PowerShell 重定向**，全目录 **UTF-8 / LF** |
+| 行尾口径修正 | v0.17.0 目录下 19 条补丁中 18 条为 **CRLF**（仅 `0007`/`0001-sync-daemon` 为 LF）。在 LF 工作树（WSL/Linux）上 `git apply` 对 CRLF 补丁必然失败，只有 Git-for-Windows（`core.autocrlf=true`）能容错。本轮起**统一 LF**，与「UTF-8 / LF」纪律一致，并已在 LF 环境下逐条验证可应用 |
+| 上游变更（v0.17.0→v0.18.0） | 127 文件，+4874/−946，34 提交 |
+| 冲突与处置 | 见下「本轮变更」 |
+| 验证 | ① pristine v0.18.0 上按文件名排序逐条 `git apply --check` + `git apply` 全绿；② 反序 `git apply --reverse` 后 `git status --porcelain` 为空（受影响文件 SHA-256 逐条还原） |
+
+### 本轮变更
+
+| 补丁 | 变更 |
+|---|---|
+| `0001-sync-daemon-settings-tab` | 无上游冲突，按 v0.18.0 上下文重新生成（触及 `lib/settings-navigation.ts`、`components/SettingsPanel.tsx`、`components/SyncConfig.tsx`、`lib/i18n/messages/*`、`app/api/sync-daemon/route.ts`）。`SettingsPanel.tsx` 在 v0.18.0 新增 `clearStoredDrafts` 相关改动（#1739/#1740 系），与本补丁插入位置不重叠 |
 
 ## 0. 已登记补丁
 
@@ -10,9 +28,9 @@
 
 | 项 | 内容 |
 |---|---|
-| 文件 | `patches/v0.17.0/0001-sync-daemon-settings-tab.patch`（UTF-8 / LF） |
+| 文件 | `patches/v0.18.0/0001-sync-daemon-settings-tab.patch`（UTF-8 / LF） |
 | 全局编号 | `P301-1` |
-| 打补丁的上游 | `pi-web` tag **`v0.17.0`**（`174bff9`，`Release v0.17.0`） |
+| 打补丁的上游 | `pi-web` tag **`v0.18.0`**（`2daa0d1`，`Release v0.18.0`） |
 | 触及文件 | `lib/settings-navigation.ts`（`SETTINGS_SECTION_VALUES` 加 `sync`）；`components/SettingsPanel.tsx`（分区项 / 图标 / 渲染 / 无桥回退）；**新增** `components/SyncConfig.tsx`；`lib/i18n/messages/{zh-CN,en,zh-TW}.ts`（`settings.sync*` 文案） |
 | **触发条件** | 需求 `301-sync-daemon` 改版（D18）：设置入口从桌面壳的原生窗口改为 **pi-web 设置对话框内的分区**。pi-web **没有** 客户端 UI 插件/扩展插槽：pi 扩展 UI 只有 `select`/`confirm`/`input`/`editor`/`custom`（终端组件）与编辑器上/下 widget、状态栏；设置分区由 `lib/settings-navigation.ts` 枚举 + `components/SettingsPanel.tsx` 硬编码，无注册表。运行时 DOM 注入依赖上游 DOM 结构、升级即静默失效，且手机端层级 / i18n / 焦点 / a11y 无法自然接入 → 选择构建期补丁 |
 | **实施时机** | `scripts/prepare-next.mjs` 阶段 **1b**：在 `next build` 之前幂等应用，构建成功后 `finally` 自动回退（`revertAll`），`../pi-web` 在构建窗口期之外保持 pristine |
