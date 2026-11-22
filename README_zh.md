@@ -10,8 +10,8 @@
 > 提供的 Pi Web UI，桌面壳补齐 pi 自己没有的东西（托盘、原生通知、单实例、窗口状态、产物引导、更新引导），
 > 界面 **100% 复用上游**、不 fork 前端。
 
-**版本**：`0.17.0`（tag `v0.17.0`；见 [docs/构建验证记录.md](docs/构建验证记录.md)）
-· **上游基线**：`pi` **v1.5.2**（`Branch_v1.5.2`）+ `pi-web` **v0.17.0**（`Branch_v0.17.0`）
+**版本**：`0.18.0`（tag `v0.18.0`；见 [docs/构建验证记录.md](docs/构建验证记录.md)）
+· **上游基线**：`pi` **v1.6.0**（`Branch_v1.6.0`）+ `pi-web` **v0.18.0**（`Branch_v0.18.0`）
 · **运行时**：Electron **43.7.9**（Node **24.21.0** / Chromium **150.0.7871.250** / ABI **148**）
 · **应用名 / 可执行名 / 应用 ID**：`Pi Desktop` / `pi-desktop` / `com.fellow99.pi.desktop`
 
@@ -152,7 +152,7 @@ CLI / RPC / JSON / SDK 四种集成入口。`Pi Web` 是它的本地浏览器界
 | 构建 | TypeScript | `^5.6.0`（strict，`tsc --noEmit`） | `@types/node` `^24.3.0` |
 | 构建 | makers | Forge 5 个 maker | Squirrel(win) / ZIP(win,mac,linux) / DMG(mac) / RPM(linux) / DEB(linux) |
 | CI | Node | **24.21.0** | 与运行时同版（门禁用同一个 Node 起服务） |
-| 上游（随 `pi-dist` 分发） | `pi-web` | **0.17.0**（Next **16.4.4** App Router） | SPA + `/api/*`（约 90 条路由）+ SSE |
+| 上游（随 `pi-dist` 分发） | `pi-web` | **0.18.0**（Next **16.4.6** App Router） | SPA + `/api/*`（约 90 条路由）+ SSE |
 | 上游（随 `pi-dist` 分发） | `pi` | **1.5.2**（`@earendil-works/pi-coding-agent` 等） | 进程内 SDK；`packages/*` lockstep 1.5.2 |
 | 上游原生件 | `node-pty` | 1.2.0-beta.15 | `serverExternalPackages`；**ABI 148 下实测可加载**（轮次 2），并有构建期完整性守卫（`FR-012-027`） |
 
@@ -166,7 +166,7 @@ CLI / RPC / JSON / SDK 四种集成入口。`Pi Web` 是它的本地浏览器界
 | 项 | 要求 |
 |---|---|
 | Node | **24.21.0**（官方二进制；与 Electron 43.7.9 内置版本一致）。上游门禁是 `>=22.19.0`，但门禁脚本必须与运行时同版才能代表真实行为 |
-| 同级工程 | `../pi`（submodule，`Branch_v1.5.2`）、`../pi-web`（submodule，`Branch_v0.17.0`）—— 本工程用 **sibling 源码引用**，不用 npm 依赖 |
+| 同级工程 | `../pi`（submodule，`Branch_v1.6.0`）、`../pi-web`（submodule，`Branch_v0.18.0`）—— 本工程用 **sibling 源码引用**，不用 npm 依赖 |
 | 品牌物料 | `../assets/`（父工程：`logo.svg`、`logo.png`、`logo-1024-with-bg.png`、`logo-200-with-bg.png`、`logo.ico`、`logo.icns`）——缺失即构建失败（可用 `--assets` 或 `PI_ASSETS_DIR` 覆盖） |
 | 包管理 | `npm`（`npm ci` 消费各自的 lockfile） |
 | git | 克隆 submodule、`pin:upstream` 记录 SHA、`git/worktree` 能力验证 |
@@ -273,8 +273,8 @@ node scripts/probe-renderer.mjs --debug-port 9333 --cwd <可写目录>   # R1–
 
 ```
 pi-workspace/
-├── pi/                          # [submodule] 上游宿主 + SDK，固定 Branch_v1.5.2
-├── pi-web/                      # [submodule] 上游 UI + 服务端，固定 Branch_v0.17.0
+├── pi/                          # [submodule] 上游宿主 + SDK，固定 Branch_v1.6.0
+├── pi-web/                      # [submodule] 上游 UI + 服务端，固定 Branch_v0.18.0
 ├── assets/                      # 品牌物料（父工程；本工程经 ../assets 消费）
 ├── pi-desktop/                  # [submodule] ← 本工程（Electron 桌面壳）
 │      ├─ ../pi      （宿主 + SDK）  ← 构建期：npm install（产出 @earendil-works/* 依赖树）
