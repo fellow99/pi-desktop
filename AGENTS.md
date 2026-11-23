@@ -43,6 +43,25 @@ npm run start          # 开发运行
 npm run package        # 打包（Forge）
 ```
 
+## 三之二、CI 依赖安装口径与「依赖版本门禁」铁律
+
+> 来源：0.18.0 轮 Android 版 CI 失败（run #26）后做的跨工程复核。**本工程 CI 走 `npm ci`，不存在该问题**，
+> 但门禁规则必须与其他三端一致，否则改一处会踩另一处的坑。
+
+| 项 | 本工程（pi-desktop） |
+|---|---|
+| CI 装 pi-web 依赖 | `node scripts/prepare-next.mjs` → 内部 **`npm ci`**（`ci.yml` / `release.yml` 都是这条） |
+| 安装树与 lock | 逐条一致（`npm ci` 保证） |
+| 现状 | 现有门禁 **不会**误报 |
+
+**铁律（四端统一）：任何"依赖版本门禁"只允许校验 `pi-web/package.json` 里「精确钉住」的直连依赖**
+（spec 无 `^` / `~` / `*`，当前 **19 项**：`next@16.4.6`、`@earendil-works/*@1.6.0` 等）。
+
+- ❌ 禁止拿 `package-lock.json` 逐条比对整棵安装树 —— 安卓版 CI 用 `pnpm --lockfile=false`（上游无 pnpm lock），
+  caret 包合法浮动，整树比对必然误报（0.18.0 轮 run #26 就是这样失败的）。
+- ✅ 精确钉住项在 `npm ci` 与 pnpm 非冻结安装下都落到同一版本，等价于「装的是当前上游 tag 的基线」。
+- 实现见 `scripts/prepare-next.mjs` 的 `installedVersionsStale()`；**改它之前先读注释里的失败史**。
+
 ## 四、规格文档（specs）
 
 - 编号规则：`0XX` 公共模块（011 版本 / 012 构建工作流 / 013 品牌化）· `1XX` 基础模块 · `2XX` 插件模块。
