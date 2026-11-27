@@ -143,25 +143,30 @@ function verifyNativeDeps(source) {
 }
 
 /**
- * 安装树与 lock 是否同一版本口径。
+ * 安装树是否来自「正确的上游版本」。
  *
  * 为什么需要：`node_modules` 存在就跳过 `npm ci` 的判据只证明「装过」，不证明「装的是当前版本」。
  * 上游 tag 一升（pi-web 0.17.0 → 0.18.0 带 next 16.4.4 → 16.4.6、pi 1.5.2 → 1.6.0），
  * 旧 node_modules 会让整轮「升级」静默落空：构建成功、产物里的依赖仍是上一版。
- * 0.18.0 轮实测踩中（产物 pi-dist 内 next=16.4.4 / pi-coding-agent=1.5.2，而 lock 为 16.4.6 / 1.6.0）。
+ *
+ * 判据只取 pi-web **精确钉住**的直连依赖（`next`、`@earendil-works/*` 等，spec 无 `^`/`~`）。
+ * 为什么不是整棵 lock：安装方式不同，浮动范围包版本必然不同 —— CI 用
+ * `pnpm install --lockfile=false`（上游无 pnpm lock），`^5.2.0` 会装到 5.3.0，
+ * 与 npm 的 `package-lock.json`（5.2.0）不同**且合法**。精确钉住的包两种方式都落到同一版本。
  */
 function installedVersionsStale(source) {
-  const lockPath = join(source, 'package-lock.json');
-  if (!existsSync(lockPath)) return false;
-  let locked;
+  const pkgPath = join(source, 'package.json');
+  if (!existsSync(pkgPath)) return false;
+  let pkg;
   try {
-    locked = JSON.parse(readFileSync(lockPath, 'utf8')).packages ?? {};
+    pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
   } catch {
     return false;
   }
-  for (const [name, meta] of Object.entries(locked)) {
-    if (!name.startsWith('node_modules/')) continue;
-    const installedPkg = join(source, name, 'package.json');
+  const pinned = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) };
+  for (const [name, spec] of Object.entries(pinned)) {
+    if (typeof spec !== 'string' || !/^\d+\.\d+\.\d+([-+].*)?$/.test(spec)) continue;
+    const installedPkg = join(source, 'node_modules', name, 'package.json');
     if (!existsSync(installedPkg)) continue;
     let actual;
     try {
@@ -169,8 +174,8 @@ function installedVersionsStale(source) {
     } catch {
       continue;
     }
-    if (meta?.version && actual !== meta.version) {
-      console.log(`[prepare-next] 安装树与 lock 不一致：${name} 已装 ${actual}，lock 为 ${meta.version} → 需要重装`);
+    if (actual !== spec) {
+      console.log(`${LOG} 安装树与基线不一致：${name} 已装 ${actual}，要求 ${spec} → 重装`);
       return true;
     }
   }
