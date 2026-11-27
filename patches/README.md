@@ -2,10 +2,26 @@
 
 > 原则：**补丁是结论，不是快捷方式**。每一条都必须写明「触发条件 / 实施时机 / 替代方案」，
 > 并占用全局唯一编号（编号只增不改、不复用）。
-> 当前上游基线：`pi-web` tag **`v0.18.0`**（commit `2daa0d1`）。
+> 当前上游基线：`pi-web` tag **`v0.19.0`**（commit `7b77aa1a`）。
 
 
-## 0.0 v0.18.0 rebase 记录（2026-11-22）
+## 0.0 v0.19.0 rebase 记录（2026-11-27）
+
+| 项 | 内容 |
+|---|---|
+| 上游基线 | `pi-web` tag **`v0.19.0`**（`7b77aa1a01a74597280dd5bbc9221195411bddf4`，annotated tag `e5192a7557f73dadea42a76aab785f65597f2197`，`Release v0.19.0`）· `pi` tag **`v1.6.1`**（`ef4a1cfcca62b77ad3558337ff3e1c7f6beeadfe`） |
+| 生成方式 | 独立 detached worktree `git worktree add --detach ../.tmp/wt-019 v0.19.0`；逐条 `git apply`（冲突条目手工重放）→ `git add` → `git commit` → `git diff HEAD^ HEAD > patches/v0.19.0/<同名>.patch`；**未经 PowerShell 重定向**，全目录 **UTF-8 / LF** |
+| 上游变更（v0.18.0→v0.19.0） | 284 文件，+8976/−2383，44 提交 |
+| 冲突与处置 | 见下「本轮变更」 |
+| 验证 | ① pristine v0.19.0 上按文件名排序逐条 `git apply --check` + `git apply` 全绿；② 反序 `git apply --reverse` 后 `git status --porcelain` 为空（受影响文件 SHA-256 逐条还原） |
+
+### 本轮变更
+
+| 补丁 | 变更 |
+|---|---|
+| `0001-sync-daemon-settings-tab` | **1 处上下文冲突**，按 v0.19.0 重放：上游重构给 `components/SettingsPanel.tsx` 新增了 `import { HttpProxyForm } from "./HttpProxyForm"`、`readJsonOrThrow`、`errorMessage`，正好插在 `import { McpConfig }` 与 `import { ConfigButton }` 之间，破坏了本补丁首个 hunk 的导入上下文。处置：`git apply --exclude=components/SettingsPanel.tsx` 应用其余部分后，在 v0.19.0 上手工重放该文件的 6 处插入（导入 / `sync` 图标 / `useState` 惰性初值 / 分区枚举 / `setLastSettingsSection` 守卫 / `sectionHost("sync")`）；语义逐字不变 |
+
+## 0.0b v0.18.0 rebase 记录（2026-11-22）
 
 | 项 | 内容 |
 |---|---|
@@ -28,16 +44,16 @@
 
 | 项 | 内容 |
 |---|---|
-| 文件 | `patches/v0.18.0/0001-sync-daemon-settings-tab.patch`（UTF-8 / LF） |
+| 文件 | `patches/v0.19.0/0001-sync-daemon-settings-tab.patch`（UTF-8 / LF） |
 | 全局编号 | `P301-1` |
-| 打补丁的上游 | `pi-web` tag **`v0.18.0`**（`2daa0d1`，`Release v0.18.0`） |
+| 打补丁的上游 | `pi-web` tag **`v0.19.0`**（`7b77aa1a`，`Release v0.19.0`） |
 | 触及文件 | `lib/settings-navigation.ts`（`SETTINGS_SECTION_VALUES` 加 `sync`）；`components/SettingsPanel.tsx`（分区项 / 图标 / 渲染 / 无桥回退）；**新增** `components/SyncConfig.tsx`；`lib/i18n/messages/{zh-CN,en,zh-TW}.ts`（`settings.sync*` 文案） |
 | **触发条件** | 需求 `301-sync-daemon` 改版（D18）：设置入口从桌面壳的原生窗口改为 **pi-web 设置对话框内的分区**。pi-web **没有** 客户端 UI 插件/扩展插槽：pi 扩展 UI 只有 `select`/`confirm`/`input`/`editor`/`custom`（终端组件）与编辑器上/下 widget、状态栏；设置分区由 `lib/settings-navigation.ts` 枚举 + `components/SettingsPanel.tsx` 硬编码，无注册表。运行时 DOM 注入依赖上游 DOM 结构、升级即静默失效，且手机端层级 / i18n / 焦点 / a11y 无法自然接入 → 选择构建期补丁 |
 | **实施时机** | `scripts/prepare-next.mjs` 阶段 **1b**：在 `next build` 之前幂等应用，构建成功后 `finally` 自动回退（`revertAll`），`../pi-web` 在构建窗口期之外保持 pristine |
 | **替代方案** | ① 插件 / 扩展 —— 无设置分区插槽（否决）；② 运行时注入 —— 依赖上游 DOM、升级无构建期感知（否决）；③ 保留原生设置窗口 —— 与 pi-web 现有设置重复建设（用户已否决） |
 | **往返校验** | 应用前记录受影响文件 SHA-256 → 应用 → 反向 → 断言逐文件还原 → 再正式应用；冲突即硬失败（绝不 `--3way`） |
-| **生成方式** | 独立 detached worktree（`git -C ../pi-web worktree add --detach <tmp> v0.18.0`）上修改并 `tsc --noEmit` 验证 → `git diff --cached --output=<patch>`（不经 PowerShell 重定向，避免 UTF-16）→ `worktree remove` |
-| **回退方式** | `node scripts/patches.mjs revert`（或在 `../pi-web` 上 `git apply --reverse patches/v0.18.0/0001-sync-daemon-settings-tab.patch`） |
+| **生成方式** | 独立 detached worktree（`git -C ../pi-web worktree add --detach <tmp> v0.19.0`）上修改并 `tsc --noEmit` 验证 → `git diff --cached --output=<patch>`（不经 PowerShell 重定向，避免 UTF-16）→ `worktree remove` |
+| **回退方式** | `node scripts/patches.mjs revert`（或在 `../pi-web` 上 `git apply --reverse patches/v0.19.0/0001-sync-daemon-settings-tab.patch`） |
 | **规格** | `specs/301-sync-daemon/{spec,plan,test-cases}.md`（FR-301-004a/004b/004c、D18–D20、TC-21） |
 
 ## 1. 补丁纪律（新增补丁时必须遵守）

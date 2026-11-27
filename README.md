@@ -12,8 +12,8 @@
 > instance, window state, artifact bootstrap, update guidance) while the UI is **100% upstream** —
 > no frontend fork.
 
-**Version**: `0.18.0` (tag `v0.18.0`; see [docs/构建验证记录.md](docs/构建验证记录.md))
-· **Upstream baseline**: `pi` **v1.6.0** (`Branch_v1.6.0`) + `pi-web` **v0.18.0** (`Branch_v0.18.0`)
+**Version**: `0.19.0` (tag `v0.19.0`; see [docs/构建验证记录.md](docs/构建验证记录.md))
+· **Upstream baseline**: `pi` **v1.6.1** (`Branch_v1.6.1`) + `pi-web` **v0.19.0** (`Branch_v0.19.0`)
 · **Runtime**: Electron **43.7.9** (Node **24.21.0** / Chromium **150.0.7871.250** / ABI **148**)
 · **App name / executable / app ID**: `Pi Desktop` / `pi-desktop` / `com.fellow99.pi.desktop`
 
@@ -164,7 +164,7 @@ builds the three-OS matrix and publishes the Release assets.
 | Build | TypeScript | `^5.6.0` (strict, `tsc --noEmit`) | `@types/node` `^24.3.0` |
 | Build | makers | 5 Forge makers | Squirrel(win) / ZIP(win,mac,linux) / DMG(mac) / RPM(linux) / DEB(linux) |
 | CI | Node | **24.21.0** | same version as the runtime (the gate starts the server with the same Node) |
-| Upstream (shipped inside `pi-dist`) | `pi-web` | **0.18.0** (Next **16.4.6** App Router) | SPA + `/api/*` (~90 routes) + SSE |
+| Upstream (shipped inside `pi-dist`) | `pi-web` | **0.19.0** (Next **16.4.6** App Router) | SPA + `/api/*` (~90 routes) + SSE |
 | Upstream (shipped inside `pi-dist`) | `pi` | **1.6.0** (`@earendil-works/pi-coding-agent`, …) | in-process SDK; `packages/*` locked at 1.6.0 |
 | Upstream native module | `node-pty` | 1.2.0-beta.15 | `serverExternalPackages`; **measured loadable under ABI 148** (round 2) with a build-time completeness gate (`FR-012-027`) |
 
@@ -178,7 +178,7 @@ The shell's only runtime dependency is `electron-squirrel-startup`; `next` / `@e
 | Item | Requirement |
 |---|---|
 | Node | **24.21.0** (official binary; matches the version bundled with Electron 43.7.9). The upstream gate is `>=22.19.0`, but the gate script must match the runtime to represent real behaviour |
-| Sibling projects | `../pi` (submodule, `Branch_v1.6.0`), `../pi-web` (submodule, `Branch_v0.18.0`) — this project uses **sibling source references**, not npm dependencies |
+| Sibling projects | `../pi` (submodule, `Branch_v1.6.1`), `../pi-web` (submodule, `Branch_v0.19.0`) — this project uses **sibling source references**, not npm dependencies |
 | Brand assets | `../assets/` (parent project: `logo.svg`, `logo.png`, `logo-1024-with-bg.png`, `logo-200-with-bg.png`, `logo.ico`, `logo.icns`) — missing assets fail the build (override with `--assets` or `PI_ASSETS_DIR`) |
 | Package manager | `npm` (`npm ci` against each lockfile) |
 | git | clone submodules, `pin:upstream` records SHAs, `git/worktree` capability checks |
@@ -292,8 +292,8 @@ build scripts resolve `../sibling` paths):
 
 ```
 pi-workspace/
-├── pi/                          # [submodule] upstream host + SDK, pinned to Branch_v1.6.0
-├── pi-web/                      # [submodule] upstream UI + server, pinned to Branch_v0.18.0
+├── pi/                          # [submodule] upstream host + SDK, pinned to Branch_v1.6.1
+├── pi-web/                      # [submodule] upstream UI + server, pinned to Branch_v0.19.0
 ├── assets/                      # brand assets (parent project; consumed here as ../assets)
 ├── pi-desktop/                  # [submodule] ← this project (Electron desktop shell)
 │      ├─ ../pi      (host + SDK)    ← build time: npm install (produces the @earendil-works/* tree)
@@ -382,7 +382,7 @@ capability matrix in [docs/桌面能力清单.md](docs/桌面能力清单.md).
   (see [LICENSE](LICENSE)).
 - **Name notice**: the name contains `pi` only to describe the upstream project being wrapped; the in-app
   "About" page states the same notices.
-- **One opt-in outbound request**: upstream pi-web v0.18.0 renders a ```plantuml fence on
+- **One opt-in outbound request**: upstream pi-web v0.19.0 renders a ```plantuml fence on
   `www.plantuml.com` — only after the user clicks "Render on plantuml.com", and only that one
   diagram's source is encoded into the URL. Nothing else leaves the machine; do not click it on
   confidential diagrams.

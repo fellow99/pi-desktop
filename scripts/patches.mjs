@@ -43,7 +43,7 @@ function git(source, args) {
   };
 }
 
-/** 由 pi-web 的 package.json 版本推导补丁目录名（`v0.18.0`）。 */
+/** 由 pi-web 的 package.json 版本推导补丁目录名（`v0.19.0`）。 */
 export function patchTag(source) {
   const pkgPath = join(source, 'package.json');
   if (!existsSync(pkgPath)) throw new Error(`未找到 pi-web（${pkgPath}）`);
