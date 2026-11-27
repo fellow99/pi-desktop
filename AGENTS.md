@@ -55,7 +55,7 @@ npm run package        # 打包（Forge）
 | 现状 | 现有门禁 **不会**误报 |
 
 **铁律（四端统一）：任何"依赖版本门禁"只允许校验 `pi-web/package.json` 里「精确钉住」的直连依赖**
-（spec 无 `^` / `~` / `*`，当前 **19 项**：`next@16.4.6`、`@earendil-works/*@1.6.0` 等）。
+（spec 无 `^` / `~` / `*`，当前 **19 项**：`next@16.4.6`、`@earendil-works/*@1.6.1` 等）。
 
 - ❌ 禁止拿 `package-lock.json` 逐条比对整棵安装树 —— 安卓版 CI 用 `pnpm --lockfile=false`（上游无 pnpm lock），
   caret 包合法浮动，整树比对必然误报（0.18.0 轮 run #26 就是这样失败的）。
